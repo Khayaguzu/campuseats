@@ -28,3 +28,8 @@ Manual EFT approval has been removed from new checkout. Genuine online payments 
 ## Checkout account verification and payment interface
 
 The payment dialog uses the same design and account session as the original site. Customers must provide their CampusEats email and password again to confirm a local simulated transaction, or before receiving a PayFast redirect. The backend verifies both. Local simulations are prominently disclosed as **not charging actual money** on both the payment screen and receipt. No card or bank-login credentials are collected.
+
+
+## Android connection and API parity check
+
+Open `CampusEats_Website_Android_App_Separated/Android_App` directly in Android Studio. The Kotlin WebView loads the same responsive website and its PHP REST API rather than duplicating business rules or storing a separate database. When the emulator cannot connect, the app now reports the network/HTTP status and displays the exact URL to test in the emulator browser. See `Android_App/README.md`. Run `python Website/tests/shared_client_contract.py` from the separated project root, or from the Website directory run `python tests/shared_client_contract.py`, to check source-level API parity. Final WampServer and device integration tests require a reachable running local server.
