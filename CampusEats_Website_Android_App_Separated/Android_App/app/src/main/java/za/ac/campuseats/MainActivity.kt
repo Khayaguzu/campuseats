@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.util.Base64
 import android.view.View
 import android.webkit.CookieManager
@@ -14,6 +15,7 @@ import android.webkit.JsResult
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -35,6 +37,7 @@ class MainActivity : Activity()
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
     private lateinit var errorPanel: LinearLayout
+    private lateinit var connectionMessage: TextView
     private val preferences by lazy { getSharedPreferences("sso_flow", MODE_PRIVATE) }
     private val siteUrl by lazy { BuildConfig.BASE_URL.trimEnd('/') + "/" }
     private val ssoUrl by lazy { BuildConfig.SSO_URL.trimEnd('/') + "/" }
@@ -61,10 +64,10 @@ class MainActivity : Activity()
         errorPanel = LinearLayout(this)
         errorPanel.orientation = LinearLayout.VERTICAL
         errorPanel.setPadding(40, 60, 40, 40)
-        val message = TextView(this)
-        message.text = "CampusEats cannot connect. Check your connection and make sure WampServer is running."
-        message.textSize = 18f
-        errorPanel.addView(message)
+        connectionMessage = TextView(this)
+        connectionMessage.text = connectionHelp("The server has not responded yet.")
+        connectionMessage.textSize = 16f
+        errorPanel.addView(connectionMessage)
         val retry = Button(this)
         retry.text = "Try again"
         retry.setOnClickListener(
@@ -74,6 +77,28 @@ class MainActivity : Activity()
             webView.loadUrl(siteUrl + "index.php")
         })
         errorPanel.addView(retry)
+        if (BuildConfig.DEBUG)
+        {
+            // Opens the identical PHP website in the emulator's browser.
+            // This distinguishes WampServer connectivity problems from WebView issues.
+            val checkBrowser = Button(this)
+            checkBrowser.text = "Open website in browser"
+            checkBrowser.setOnClickListener(
+            {
+                try
+                {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(siteUrl + "index.php"))
+                        .addCategory(Intent.CATEGORY_BROWSABLE))
+                }
+                catch (_: android.content.ActivityNotFoundException)
+                {
+                    AlertDialog.Builder(this)
+                        .setMessage("Install a browser to check your CampusEats server URL.")
+                        .setPositiveButton("OK", null).show()
+                }
+            })
+            errorPanel.addView(checkBrowser)
+        }
         errorPanel.visibility = View.GONE
         root.addView(errorPanel, LinearLayout.LayoutParams(-1, -1))
         setContentView(root)
@@ -151,16 +176,24 @@ class MainActivity : Activity()
             {
                 if (request.isForMainFrame)
                 {
-                    webView.visibility = View.GONE
-                    errorPanel.visibility = View.VISIBLE
+                    showConnectionError("Network error ${error.errorCode}: ${error.description}")
+                }
+            }
+
+            override fun onReceivedHttpError(view: WebView, request: WebResourceRequest,
+                errorResponse: WebResourceResponse)
+            {
+                if (request.isForMainFrame && errorResponse.statusCode >= 400)
+                {
+                    showConnectionError("Website returned HTTP ${errorResponse.statusCode} " +
+                        errorResponse.reasonPhrase.orEmpty())
                 }
             }
         }
         if (!BuildConfig.DEBUG && baseUri.scheme != "https")
         {
-            message.text = "Release builds require an HTTPS server URL. Update CAMPUS_BASE_URL before building."
-            webView.visibility = View.GONE
-            errorPanel.visibility = View.VISIBLE
+            showConnectionError("Release builds require HTTPS. Configure a trusted HTTPS " +
+                "CAMPUS_BASE_URL before publishing this app.")
             return
         }
         if (!handleAuthIntent(intent))
@@ -170,6 +203,39 @@ class MainActivity : Activity()
                 webView.loadUrl(siteUrl + "index.php")
             }
         }
+    }
+
+    /** A single server URL serves both clients. The native app never stores
+     * a separate menu, user database, discount rule, or payment implementation.
+     * The website's JavaScript sends the same authenticated REST requests to
+     * api.php in a normal browser and in this WebView.
+     */
+    private fun connectionHelp(reason: String): String
+    {
+        val website = siteUrl + "index.php"
+        val hint = if (BuildConfig.DEBUG)
+        {
+            "\n\nCheck WampServer (green icon), then open this exact URL in " +
+                "the emulator browser:\n$website\n\n" +
+                "10.0.2.2 is the emulator's connection to your Windows computer. " +
+                "If the website works in Chrome but not in this app, verify " +
+                "CAMPUS_BASE_URL in Android_App/gradle.properties and rebuild the app."
+        }
+        else
+        {
+            "\n\nCheck your internet connection and try again."
+        }
+        return "CampusEats cannot connect.\n\n$reason$hint"
+    }
+
+    private fun showConnectionError(reason: String)
+    {
+        // Log only the URL and network status, never cookies or login details.
+        Log.e("CampusEats", "Could not load ${siteUrl}index.php: $reason")
+        connectionMessage.text = connectionHelp(reason)
+        progress.visibility = View.GONE
+        webView.visibility = View.GONE
+        errorPanel.visibility = View.VISIBLE
     }
 
     private fun isTrusted(uri: Uri): Boolean
