@@ -22,7 +22,7 @@ manifest = (android / 'app' / 'src' / 'main' / 'AndroidManifest.xml').read_text(
 # Both browser and Android run the same JavaScript, therefore the same API calls.
 assert 'WebView(this)' in android_main
 assert 'webView.loadUrl(siteUrl + "index.php")' in android_main
-assert 'fetch(' in frontend and 'api.php?action=' in frontend
+assert 'fetch(`api.php?action=${encodeURIComponent(action)}`, options)' in frontend
 assert 'android.permission.INTERNET' in manifest
 assert 'mysql:' not in android_main.lower(), 'Android must not connect directly to MySQL'
 
