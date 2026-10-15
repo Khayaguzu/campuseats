@@ -14,3 +14,17 @@ No credentials are committed. Google sign-in requires owner-supplied Google OAut
 ## Legacy WampServer local PHP compatibility
 
 The PHP source has been adapted for PHP **7.2 to 7.4** syntax and runtime functions, so a local upgrade is not required if one of those versions is installed and selected in Apache. PHP 5.6 is not supported. For public hosting, upgrade to a currently supported PHP version because PHP 7.x has reached end of security support. See `Website/README.md` for the nested-folder URL used when cloning this repository directly inside WampServer.
+
+## Pay-before-collection update
+
+The original website and Kotlin app remain in separate folders. After backing up an existing `campuseats` database, import `Website/database/payment_migration.sql` using phpMyAdmin and add the `payments` block from `Website/server/config.example.php` to your private `server/config.php`. Detailed steps and gateway requirements are in `Website/README.md`. No merchant credentials are included.
+
+
+## Payment correction for existing Windows WampServer installations
+
+Manual EFT approval has been removed from new checkout. Genuine online payments are verified automatically by PayFast. A clearly-labelled **local simulated payment** option is available for localhost testing only, disabled by default and requiring no payment credentials. The paid collection number appears in My orders after verification. For the Administration error, back up the existing MySQL database and import `Website/database/payment_migration.sql` on the same MySQL instance (3308 in this installation). Do not replace private `server/config.php`; add only the `payments` configuration. Read `Website/README.md` for full setup steps and safeguards.
+
+
+## Checkout account verification and payment interface
+
+The payment dialog uses the same design and account session as the original site. Customers must provide their CampusEats email and password again to confirm a local simulated transaction, or before receiving a PayFast redirect. The backend verifies both. Local simulations are prominently disclosed as **not charging actual money** on both the payment screen and receipt. No card or bank-login credentials are collected.

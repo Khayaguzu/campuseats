@@ -2,6 +2,8 @@
 Run: python tests/integration.py http://127.0.0.1:8088 admin@test.local 'password'
 The database must contain schema.sql, seed.sql and the supplied admin account.
 Never run this test against a production database; it creates records.
+Enable payments.demo ONLY in an isolated local test server (no real funds).
+The test server must be accessed on localhost, with PHP/Apache using a loopback address.
 """
 import sys, uuid, datetime, urllib.request, urllib.error, http.cookiejar, json
 BASE, ADMIN_EMAIL, ADMIN_PASSWORD = sys.argv[1:4]
@@ -52,7 +54,7 @@ second.call('login', {'email': suffix+'@student.test', 'password': 'TestingPassw
 check(second.call('cart')[1]['items'][0]['quantity'] == 2, 'Basket is shared between independent client sessions')
 pickup = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=20)).isoformat()
 def checkout(client):
-    payload = {'request_key': uuid.uuid4().hex, 'pickup_at': pickup, 'notes': 'Integration test', 'total_cents': 1}
+    payload = {'request_key': uuid.uuid4().hex, 'pickup_at': pickup, 'notes': 'Integration test', 'total_cents': 1, 'payment_method': 'demo'}
     status, result = client.call('checkout', payload)
     check(status == 201, 'Order checkout succeeds with server-authoritative prices')
     duplicate = client.call('checkout', payload)[1]
@@ -69,11 +71,19 @@ order_id = checkout(student)
 order = student.call('orders')[1]['orders'][0]
 check(order['discount_cents'] == 900 and order['total_cents'] == 8100, 'Verified student receives exactly 10 percent off')
 check(admin.call('order_status', {'id': order_id, 'status': 'collected'})[0] == 422, 'Invalid order status jumps are rejected')
-check(admin.call('order_status', {'id': order_id, 'status': 'preparing'})[0] == 200, 'Administrator can start preparing an order')
+check(admin.call('order_status', {'id': order_id, 'status': 'preparing'})[0] == 422, 'Unpaid orders cannot enter food preparation')
+check(student.call('payment_verify', {'id': order_id})[0] == 404, 'Manual administrator payment approval endpoint is removed')
+check(admin.call('payment_verify', {'id': order_id})[0] == 404, 'Administrators cannot manually declare payments successful')
+check(admin.call('payment_demo_complete', {'id': order_id})[0] == 422, 'Administrators cannot simulate payment on another user order')
+status, receipt = student.call('payment_demo_complete', {'id': order_id})
+check(status == 200 and receipt.get('demo') is True and receipt.get('collection_number', '').startswith('CE'), 'User completes a clearly labelled simulated payment and receives collection code')
+check(student.call('payment_demo_complete', {'id': order_id})[0] == 200, 'Retrying same simulated payment is idempotent')
+check(admin.call('order_status', {'id': order_id, 'status': 'preparing'})[0] == 200, 'Administrator can prepare a verified paid order')
 check(student.call('cancel', {'id': order_id})[0] == 422, 'Customers cannot cancel after preparation starts')
 admin.call('order_status', {'id': order_id, 'status': 'ready'})
 admin.call('order_status', {'id': order_id, 'status': 'collected'})
-check(student.call('orders')[1]['orders'][0]['payment_status'] == 'paid', 'Collection records payment received')
+check(student.call('orders')[1]['orders'][0]['payment_status'] == 'paid', 'Payment remains verified after collection')
+check(student.call('cancel', {'id': order_id})[0] == 422, 'Paid collected orders cannot be cancelled without a refund workflow')
 student.call('settings', {'name': 'Updated Student', 'phone': '0110000000', 'student_number': suffix, 'theme': 'dark', 'order_updates': False})
 check(second.call('bootstrap')[1]['user']['theme'] == 'dark', 'Account settings are shared between clients')
 student.call('password', {'current_password': 'TestingPassword123!', 'new_password': 'ChangedPassword123!'})
@@ -86,8 +96,11 @@ lecturer = Client()
 status, data = lecturer.call('register', {'name': 'Lecturer', 'email': suffix+'@lecturer.test', 'password': 'TestingPassword123!', 'role': 'lecturer'})
 check(status == 201 and data['user']['role'] == 'lecturer', 'Lecturer registration works')
 lecturer.call('cart_set', {'product_id': 2, 'quantity': 1})
-checkout(lecturer)
+lecturer_order_id = checkout(lecturer)
 check(lecturer.call('orders')[1]['orders'][0]['discount_cents'] == 0, 'Lecturers pay the regular selling price')
+check(admin.call('order_status', {'id': lecturer_order_id, 'status': 'preparing'})[0] == 422, 'Unpaid lecturer orders cannot be prepared')
+check(lecturer.call('payment_demo_complete', {'id': lecturer_order_id})[0] == 200, 'Lecturer can complete simulated checkout without any administrator approval')
+check(lecturer.call('payment_start', {'id': lecturer_order_id})[0] == 422, 'Simulated test orders cannot start PayFast payments')
 product = admin.call('admin')[1]['products'][0]
 product['stock'] = 0
 admin.call('product_save', product)

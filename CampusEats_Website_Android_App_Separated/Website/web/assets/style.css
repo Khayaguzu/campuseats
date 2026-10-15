@@ -995,3 +995,126 @@ td button
         padding: 0 18px 20px;
     }
 }
+
+/* Payment demo: an optional modal within the existing CampusEats design.
+   The demo uses existing checkout/API routes and never requests bank details. */
+#payment-demo-dialog
+{
+    width: min(94vw, 530px);
+    max-height: 91vh;
+    overflow-y: auto;
+}
+.demo-payment-warning
+{
+    border: 1px solid #d5b568;
+    background: #fff7df;
+    color: #6e4d11;
+    padding: 14px;
+    border-radius: 10px;
+    line-height: 1.5;
+}
+.demo-payment-summary,
+.demo-payment-receipt
+{
+    border: 1px solid var(--line);
+    background: var(--soft);
+    color: var(--text);
+    border-radius: 14px;
+    padding: 18px;
+    margin: 16px 0;
+}
+.demo-payment-line
+{
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 8px 0;
+    font-size: 14px;
+}
+.demo-payment-line strong
+{
+    text-align: right;
+}
+.demo-payment-total
+{
+    border-top: 1px solid #c7d5cc;
+    margin-top: 8px;
+    padding-top: 16px;
+    font-size: 18px;
+    color: #173d32;
+}
+.demo-payment-methods
+{
+    border: 0;
+    padding: 0;
+    margin: 16px 0;
+}
+.demo-payment-methods legend
+{
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+.demo-payment-option
+{
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 7px 0;
+    cursor: pointer;
+}
+.demo-payment-option input
+{
+    width: auto;
+    display: inline-block;
+    margin-right: 9px;
+}
+.demo-payment-option small
+{
+    display: block;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 25px;
+    padding-top: 4px;
+}
+.demo-payment-receipt
+{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+.demo-collection-code
+{
+    font-size: clamp(29px, 6vw, 42px);
+    letter-spacing: 2px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+@media (prefers-color-scheme: dark)
+{
+    /* Accessible text contrast remains visible when the device uses dark mode. */
+    .demo-payment-warning
+    {
+        color: #6e4d11;
+    }
+}
+
+/* Reuse CampusEats form controls for account reauthentication at checkout. */
+.payment-identity
+{
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin: 16px 0;
+    padding: 14px;
+}
+.payment-identity legend
+{
+    font-weight: 700;
+    padding: 0 6px;
+}
+.payment-identity label
+{
+    margin-top: 12px;
+}

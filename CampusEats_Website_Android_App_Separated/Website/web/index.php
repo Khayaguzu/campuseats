@@ -35,6 +35,8 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <dialog id="auth-dialog" aria-labelledby="auth-title"><button class="close-dialog" data-close="auth-dialog" aria-label="Close">×</button><div id="auth-content"></div></dialog>
     <dialog id="basket-dialog" aria-labelledby="basket-title"><button class="close-dialog" data-close="basket-dialog" aria-label="Close">×</button><div id="basket-content"></div></dialog>
     <dialog id="edit-dialog" aria-labelledby="edit-title"><button class="close-dialog" data-close="edit-dialog" aria-label="Close">×</button><div id="edit-content"></div></dialog>
+    <!-- Shared checkout confirmation dialog for simulated and provider payments. -->
+    <dialog id="payment-demo-dialog" aria-labelledby="payment-demo-title"><button class="close-dialog" data-close="payment-demo-dialog" aria-label="Close payment">×</button><div id="payment-demo-content"></div></dialog>
     <div id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

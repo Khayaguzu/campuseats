@@ -1,7 +1,7 @@
 'use strict';
 /** Shared presentation layer. The database is the authority for roles, stock,
  * prices, baskets and orders; no sensitive state is stored in localStorage. */
-const state = { user: null, csrf: '', products: [], vendors: [], cart: [], sso: false, category: 'All', search: '', vendor: '', adminTab: 'orders', admin: null };
+const state = { user: null, csrf: '', products: [], vendors: [], cart: [], sso: false, paymentOptions: { eft: null, payfast: false, demo: false }, category: 'All', search: '', vendor: '', adminTab: 'orders', admin: null };
 const $ = (selector) => document.querySelector(selector);
 const money = (cents) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(Number(cents) / 100);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -63,6 +63,7 @@ async function loadSession()
     state.csrf = data.csrf;
     state.vendors = data.vendors;
     state.sso = data.sso_enabled;
+    state.paymentOptions = data.payment_options || { eft: null, payfast: false, demo: false };
     document.documentElement.dataset.theme = state.user?.theme || 'light';
     $('#account-button').textContent = state.user ? state.user.name.split(' ')[0] : 'Sign in';
     $('#admin-nav').hidden = state.user?.role !== 'admin';
@@ -96,7 +97,7 @@ function signInView(register = false)
 function menuView()
 {
     $('#content').innerHTML = `<section class="hero"><div class="hero-copy"><span class="eyebrow">FRESH FOOD. FAMILIAR FACES.</span><h1>Good food.<br><span>Between classes.</span></h1><p>Your favourite campus kitchens, all in one place. Order ahead. Collect. Enjoy.</p><a class="button" href="#menu" id="browse-menu">Find your next bite ↗</a></div><img src="assets/food/burger.jpg" alt="Beef burger with lettuce and tomato"></section>
-    <div class="info-strip"><span><strong>4</strong> campus kitchens</span><span><strong>10% off</strong> for verified students</span><span><strong>Pay</strong> when you collect</span></div>
+    <div class="info-strip"><span><strong>4</strong> campus kitchens</span><span><strong>10% off</strong> for verified students</span><span><strong>Pay online</strong> before collection</span></div>
     <div class="section-head" id="menu-start"><div><h2>What are you craving?</h2><p>Something for every break, appetite and budget.</p></div><input class="search" id="search" aria-label="Search food" placeholder="Search your next favourite…" value="${escapeHtml(state.search)}"></div>
     <div class="filters">${['All', ...new Set(state.products.map((p) => p.category))].map((c) => `<button class="${state.category === c ? 'selected' : ''}" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}<select id="vendor-filter" class="vendor-select" aria-label="Filter by campus vendor"><option value="">All campus kitchens</option>${state.vendors.map((v) => `<option value="${v.id}" ${String(v.id) === state.vendor ? 'selected' : ''}>${escapeHtml(v.name)}${Number(v.is_open) ? '' : ' (closed)'}</option>`).join('')}</select></div><div class="food-grid" id="food-grid"></div>`;
     renderProducts();
@@ -121,18 +122,135 @@ function basketView()
     const defaultPickup = localDateTime(currentTime + 20 * 60000);
     const earliestPickup = localDateTime(currentTime + 5 * 60000);
     const latestPickup = localDateTime(currentTime + 24 * 60 * 60000);
-    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT CAMPUS BREAK</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div><span>Student discount (10%)</span><span>−${money(discount)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div>${state.user.role === 'student' && !Number(state.user.verified) ? '<p class="notice">Your student account is awaiting verification. The discount starts once an administrator approves it.</p>' : ''}<form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Pay on collection. Pick up from each vendor shown on your order. For allergies, confirm ingredients with the vendor before ordering.</p><button type="submit">Place order · ${money(subtotal - discount)}</button></form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
+    const methods = [
+        state.paymentOptions.payfast ? '<option value="payfast">PayFast secure online payment</option>' : '',
+        state.paymentOptions.demo ? '<option value="demo">Secure checkout (simulation, no charge)</option>' : ''
+    ].filter(Boolean).join('');
+    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT CAMPUS BREAK</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div><span>Student discount (10%)</span><span>−${money(discount)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div>${state.user.role === 'student' && !Number(state.user.verified) ? '<p class="notice">You can order and pay now. The 10% student discount starts after student-number verification.</p>' : ''}<form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Pay before collection. Your collection number appears after the payment is confirmed. Please verify your CampusEats account to continue. For allergies, confirm ingredients with the vendor before ordering.</p>${methods ? `<label>Payment method<select name="payment_method" required>${methods}</select></label><button type="submit">Continue to payment · ${money(subtotal - discount)}</button>` : '<p class="notice">Online payment is not configured yet. Set up PayFast for real payments. For local development, a simulated checkout may be enabled.</p>'}</form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
     if (!$('#basket-dialog').open)
     {
         $('#basket-dialog').showModal();
     }
 }
 
+/**
+ * Display a simulated payment screen for an existing unpaid demo order.
+ * This reuses the normal My Orders API and deliberately collects no real
+ * bank account or card details. Server-side payment confirmation remains
+ * restricted to local, authenticated test requests.
+ */
+async function demoPaymentView(orderId)
+{
+    if (!state.paymentOptions.demo)
+    {
+        throw new Error('Simulated payments are available only when enabled on localhost.');
+    }
+    const data = await api('orders');
+    const order = data.orders.find((entry) => Number(entry.id) === Number(orderId));
+    if (!order || order.payment_method !== 'demo' || order.payment_status !== 'unpaid' || order.status === 'cancelled')
+    {
+        throw new Error('This order is not awaiting payment. Refresh My orders.');
+    }
+
+    const lines = order.items.map((item) =>
+        `<div class="demo-payment-line"><span>${Number(item.quantity)} × ${escapeHtml(item.name)}</span><strong>${money(Number(item.quantity) * Number(item.price_cents))}</strong></div>`
+    ).join('');
+
+    $('#payment-demo-content').innerHTML = `
+        <span class="eyebrow">CAMPUSEATS SECURE CHECKOUT</span>
+        <h2 id="payment-demo-title">Confirm your payment</h2>
+        <p class="demo-payment-warning"><strong>Simulated transaction.</strong> No money will be charged. Enter your CampusEats credentials only, never card details or bank login information.</p>
+        <div class="demo-payment-summary">
+            <div class="demo-payment-line"><span>Order</span><strong>#${Number(order.id)}</strong></div>
+            ${lines}
+            <div class="demo-payment-line"><span>Subtotal</span><span>${money(order.subtotal_cents)}</span></div>
+            <div class="demo-payment-line"><span>Student discount</span><span>−${money(order.discount_cents)}</span></div>
+            <div class="demo-payment-line demo-payment-total"><span>Amount due</span><strong>${money(order.total_cents)}</strong></div>
+        </div>
+        <form id="demo-payment-form" data-order-id="${Number(order.id)}">
+            <fieldset class="demo-payment-methods">
+                <legend>Choose payment method</legend>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="card" checked> Card <small>Simulated checkout. No card details requested.</small></label>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="eft"> Instant EFT <small>Simulated checkout. No banking login requested.</small></label>
+            </fieldset>
+            <fieldset class="payment-identity">
+                <legend>Confirm your CampusEats account</legend>
+                <label>Email address<input type="email" name="email" autocomplete="username" value="${escapeHtml(state.user.email)}" maxlength="190" required></label>
+                <label>CampusEats password<input type="password" name="password" autocomplete="current-password" required></label>
+            </fieldset>
+            <button type="submit" class="full">Confirm payment · ${money(order.total_cents)}</button>
+            <p class="hint">Local simulation, no money is transferred. Your collection number is issued only after account verification and payment confirmation. Administrator approval is not required.</p>
+        </form>
+        <button class="secondary full" type="button" data-close="payment-demo-dialog">Return to orders</button>`;
+    if (!$('#payment-demo-dialog').open)
+    {
+        $('#payment-demo-dialog').showModal();
+    }
+}
+
+/** Confirm the CampusEats login before generating a real PayFast hand-off. */
+async function onlinePaymentLoginView(orderId)
+{
+    const orders = (await api('orders')).orders;
+    const order = orders.find((entry) => Number(entry.id) === Number(orderId));
+    if (!order || order.payment_method !== 'payfast' || order.payment_status !== 'unpaid'
+        || order.status === 'cancelled')
+    {
+        throw new Error('This order cannot proceed to online payment.');
+    }
+
+    $('#payment-demo-content').innerHTML = `
+        <span class="eyebrow">CAMPUSEATS SECURE CHECKOUT</span>
+        <h2 id="payment-demo-title">Verify account to continue</h2>
+        <p>Order #${Number(order.id)} · Total ${money(order.total_cents)}</p>
+        <p class="hint">Re-enter your CampusEats login details before continuing to the external payment provider. Never enter your bank password here.</p>
+        <form id="online-payment-login-form" data-order-id="${Number(order.id)}">
+            <fieldset class="payment-identity">
+                <legend>Account verification</legend>
+                <label>Email address<input name="email" type="email" autocomplete="username" maxlength="190" value="${escapeHtml(state.user.email)}" required></label>
+                <label>CampusEats password<input name="password" type="password" autocomplete="current-password" required></label>
+            </fieldset>
+            <button type="submit" class="full">Continue to secure payment · ${money(order.total_cents)}</button>
+        </form>`;
+    if (!$('#payment-demo-dialog').open)
+    {
+        $('#payment-demo-dialog').showModal();
+    }
+}
+
+/** Show a receipt after the server marks an authenticated demo order as paid. */
+function demoReceiptView(orderId, collectionNumber, amount)
+{
+    $('#payment-demo-content').innerHTML = `
+        <span class="eyebrow">CAMPUSEATS ORDER CONFIRMATION</span>
+        <h2 id="payment-demo-title">Payment confirmed</h2>
+        <p class="demo-payment-warning"><strong>Simulation only.</strong> No funds were transferred. This receipt is not proof of a real purchase.</p>
+        <div class="demo-payment-receipt" role="status">
+            <span class="eyebrow">YOUR COLLECTION NUMBER</span>
+            <strong class="demo-collection-code">${escapeHtml(collectionNumber)}</strong>
+            <span>Order #${Number(orderId)} · Amount ${money(amount)}</span>
+            <span>Transaction type: Simulation</span>
+        </div>
+        <p class="hint">The order number is available in My orders. Actual payments require confirmation from the live payment provider.</p>
+        <button type="button" class="full" data-close="payment-demo-dialog">View my order</button>`;
+}
+
 function orderCard(order, admin = false)
 {
     const stages = ['placed', 'preparing', 'ready', 'collected'];
     const next = { placed: 'preparing', preparing: 'ready', ready: 'collected' };
-    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">ORDER #${String(order.id).padStart(5, '0')}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${order.payment_status === 'paid' ? 'Paid on collection' : 'Pay on collection'}</span></div></div>${order.status !== 'cancelled' ? `<div class="progress">${stages.map((s, i) => `<span class="${i <= stages.indexOf(order.status) ? 'done' : ''}">${s}</span>`).join('')}</div>` : '<p class="notice">Cancelled. Stock returned to the kitchens.</p>'}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Student savings ${money(order.discount_cents)}</p><div class="row">${admin && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm paid & collected' : 'Mark ' + next[order.status]}</button>` : ''}${(admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed') ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel order</button>` : ''}</div></article>`;
+    const paid = order.payment_status === 'paid';
+    const pending = !paid && order.status !== 'cancelled';
+    const method = order.payment_method || 'legacy';
+    const demo = method === 'demo';
+    const collection = paid ? `COLLECTION #CE${String(order.id).padStart(6, '0')}` : 'PAYMENT PENDING';
+    // Prior EFT orders are not silently marked paid. They may be cancelled and re-ordered.
+    const bankDetails = pending && method === 'eft' && !admin
+        ? '<p class="notice">This old EFT order requires manual handling. Cancel it and place a new order using automatic online payment. No collection number has been issued.</p>' : '';
+    const demoPayment = pending && demo && !admin
+        ? `<p class="notice"><strong>Simulation only: no real money is transferred.</strong> Confirm your CampusEats credentials to obtain a collection number.</p><button data-demo-pay="${order.id}">Continue to payment</button>` : '';
+    const online = pending && method === 'payfast' && !admin ? `<p class="notice">Online payment not yet confirmed. Use Pay online or refresh after returning from PayFast.</p><button data-pay="${order.id}">Pay online</button>` : '';
+    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">${collection}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">Internal order ${order.id} · ${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${paid ? 'Paid · ' + (demo ? 'Simulated, no funds received' : method === 'payfast' ? 'PayFast verified' : 'Legacy payment') : 'Awaiting payment'}</span></div></div>${pending ? '<p class="notice">Payment is required before food preparation and collection.</p>' : ''}${paid && order.status !== 'cancelled' ? `<div class="progress">${stages.map((stage, index) => `<span class="${index <= stages.indexOf(order.status) ? 'done' : ''}">${stage}</span>`).join('')}</div>` : ''}${order.status === 'cancelled' ? '<p class="notice">Cancelled. Stock returned to the kitchens.</p>' : ''}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Student savings ${money(order.discount_cents)}</p>${bankDetails}${online}${demoPayment}<div class="row">${admin && paid && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm collection' : 'Mark ' + next[order.status]}</button>` : ''}${!paid && ((admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed')) ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel pending order</button>` : ''}</div></article>`;
 }
 
 function settingsView()
@@ -162,7 +280,7 @@ function adminView()
     {
         body = `<div class="two-col">${state.vendors.map((v) => `<section class="panel"><h2>${escapeHtml(v.name)}</h2><form class="vendor-form"><input type="hidden" name="id" value="${v.id}"><label>Vendor name<input name="name" value="${escapeHtml(v.name)}" maxlength="100" required></label><label>Collection location<input name="location" value="${escapeHtml(v.location)}" maxlength="150" required></label><label class="check"><input type="checkbox" name="is_open" ${Number(v.is_open) ? 'checked' : ''}>Accepting orders</label><button>Save vendor</button></form></section>`).join('')}</div>`;
     }
-    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">CAMPUS KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Collected revenue</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
+    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">CAMPUS KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Verified payments</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
 }
 
 function productEditor(id)
@@ -277,6 +395,17 @@ document.addEventListener('click', async (event) =>
             await loadSession();
             await render();
         }
+        if (element.dataset.pay)
+        {
+            // Ask for CampusEats credentials before redirecting to the provider.
+            await onlinePaymentLoginView(Number(element.dataset.pay));
+            return;
+        }
+        if (element.dataset.demoPay)
+        {
+            // The order remains unpaid until the user confirms within the demo checkout.
+            await demoPaymentView(Number(element.dataset.demoPay));
+        }
         if (element.dataset.cancel)
         {
             if (!confirm('Cancel this order and return its items to stock?')) return;
@@ -286,7 +415,7 @@ document.addEventListener('click', async (event) =>
         }
         if (element.dataset.status)
         {
-            if (element.dataset.value === 'collected' && !confirm('Confirm that payment was received and all food was collected?')) return;
+            if (element.dataset.value === 'collected' && !confirm('Confirm that the paid order was handed over using its order number?')) return;
             await api('order_status', { id: Number(element.dataset.status), status: element.dataset.value });
             await render();
         }
@@ -352,6 +481,37 @@ document.addEventListener('submit', async (event) =>
             await render();
             toast('Welcome to CampusEats.');
         }
+        if (form.id === 'demo-payment-form')
+        {
+            // Both visible options simulate the SAME local-only API action.
+            // No card or banking information is ever sent to the PHP server.
+            const orderId = Number(form.dataset.orderId);
+            const matchingOrder = (await api('orders')).orders.find((o) => Number(o.id) === orderId);
+            if (!matchingOrder || matchingOrder.payment_method !== 'demo')
+            {
+                throw new Error('This order cannot use local demo checkout.');
+            }
+            const result = await api('payment_demo_complete', {
+                id: orderId,
+                email: data.email,
+                password: data.password
+            });
+            // Clear submitted credentials immediately after successful verification.
+            form.reset();
+            await render();
+            demoReceiptView(orderId, result.collection_number, matchingOrder.total_cents);
+        }
+        if (form.id === 'online-payment-login-form')
+        {
+            const payment = await api('payment_start', {
+                id: Number(form.dataset.orderId),
+                email: data.email,
+                password: data.password
+            });
+            form.reset();
+            window.location.assign(payment.payment_url);
+            return;
+        }
         if (form.id === 'checkout-form')
         {
             // Preserve the idempotency key on failure so a retry cannot double-order.
@@ -364,7 +524,17 @@ document.addEventListener('submit', async (event) =>
             await loadCart();
             location.hash = 'orders';
             await render();
-            toast(`Order #${result.order_id} placed. Pay when you collect.`);
+            toast('Continue to payment to activate a collection number.');
+            if (data.payment_method === 'demo')
+            {
+                // Open the test checkout automatically, after the ordinary order is created.
+                // A new order is still unpaid until the customer confirms the simulation.
+                await demoPaymentView(result.order_id);
+            }
+            if (data.payment_method === 'payfast')
+            {
+                await onlinePaymentLoginView(result.order_id);
+            }
         }
         if (form.id === 'settings-form')
         {
@@ -429,12 +599,12 @@ setInterval(async () =>
         const data = await api('orders');
         for (const order of data.orders)
         {
-            if (knownOrders.has(order.id) && knownOrders.get(order.id) !== order.status)
+            if (knownOrders.has(order.id) && (knownOrders.get(order.id).status !== order.status || knownOrders.get(order.id).paid !== order.payment_status))
             {
-                toast(`Order #${order.id} is now ${order.status}.`);
+                toast(order.payment_status === 'paid' ? `Payment confirmed. Collection number CE${String(order.id).padStart(6, '0')}.` : `Your order status is now ${order.status}.`);
                 if (route() === 'orders') await render();
             }
-            knownOrders.set(order.id, order.status);
+            knownOrders.set(order.id, { status: order.status, paid: order.payment_status });
         }
     }
     catch
@@ -448,6 +618,11 @@ setInterval(async () =>
     {
         await loadSession();
         await render();
+        const parameters = new URLSearchParams(location.search);
+        if (parameters.has('payment'))
+        {
+            toast('Payment status is verified by the server, not by returning from the gateway. Refresh My orders to check.');
+        }
     }
     catch (error)
     {

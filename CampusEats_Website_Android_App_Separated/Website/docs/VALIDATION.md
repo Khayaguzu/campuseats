@@ -54,3 +54,25 @@ Repairs to the separated distribution improve setup feedback, OAuth button gatin
 The reported `T_ELLIPSIS` error on PHP 7.2/7.3 was caused by PHP 7.4-only array unpacking in `api.php`. This version uses `array_merge()` for the SQL parameter list and removes newer PHP constructs from `bootstrap.php`, including `??=`, `never` and `JSON_THROW_ON_ERROR`. Cookie options retain SameSite=Lax where supported natively and use the PHP 7.2 cookie-path compatibility technique otherwise.
 
 The existing admin, roles, stock, baskets, checkout, student discounts, Google SSO and API endpoints remain in place. Confirm the PHP interpreter version that Apache is using, the database credentials and the API response before retrying registration. Syntax checking on a later PHP version does not establish successful execution with PHP 7.2.
+
+## Payment feature update, 15 October 2026
+
+New orders use payment-first checkout. The new `order_payments` table is additive to the
+existing database; existing data must not be re-seeded. Verification uses either explicit
+administrator confirmation of an EFT after reviewing the real bank account or the PayFast
+signed ITN plus source IP, merchant, amount and server-to-server confirmation checks.
+An HTTP return redirect or customer-submitted information never marks an order paid.
+
+Local verification performed on this update: `php -l` on every PHP file,
+`node --check` on the shared website script, and `php tests/payment_helpers.php`
+for money parsing, signature generation and method gating.
+
+Not validated here: WampServer PHP 7.2 runtime, real database transactions, a live PayFast
+ITN with merchant credentials, successful EFT reconciliation, and an Android build/device
+run. Before accepting real payments test thoroughly on a non-production database, PayFast
+Sandbox and a publicly reachable HTTPS callback, and build the modified Android source.
+
+
+## Automatic payment correction
+
+The manual `payment_verify` operation is no longer accepted. New orders accept PayFast only with a valid configured HTTPS merchant callback, or an explicitly enabled, loopback-restricted **demo simulation** for local development. No collection number is displayed before a confirmed payment, and only paid orders can progress to food preparation and collection. The `order_payments` migration must be applied on existing databases to avoid a generic Administration 500 error. PayFast live payment and callback integration have not been validated with real merchant credentials in this environment; complete sandbox and end-to-end Android tests before accepting money.

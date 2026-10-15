@@ -119,6 +119,22 @@ class MainActivity : Activity()
                 val uri = request.url
                 if (isTrusted(uri))
                 {
+                    // Open the secure payment hand-off in the system browser so that
+                    // PayFast and any banking authentication never run inside WebView.
+                    if (uri.path?.endsWith("/pay.php") == true && uri.getQueryParameter("token") != null)
+                    {
+                        try
+                        {
+                            startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+                        }
+                        catch (_: android.content.ActivityNotFoundException)
+                        {
+                            AlertDialog.Builder(this@MainActivity)
+                                .setMessage("Install a browser to complete your payment.")
+                                .setPositiveButton("OK", null).show()
+                        }
+                        return true
+                    }
                     if (uri.path?.endsWith("/sso.php") == true && uri.getQueryParameter("mode") != "redeem")
                     {
                         beginSingleSignOn()
