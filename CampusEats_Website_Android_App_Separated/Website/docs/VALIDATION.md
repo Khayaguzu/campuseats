@@ -48,3 +48,9 @@ These checks are not implied by successful source validation or a debug APK buil
 Repairs to the separated distribution improve setup feedback, OAuth button gating, documented checkout lead time and Android URL handling. PHP lint and JavaScript syntax checks passed, and the PHP API was smoke-tested without a configured database to confirm that it returns a useful JSON setup error. An earlier validation record above describes tests on the original release and must not be interpreted as re-running the full MySQL integration suite or rebuilding the APK after these maintenance edits.
 
 **Still required on the owner's computer:** import the MySQL schema and seed, configure `server/config.php`, run the supplied database integration tests against an isolated database, rebuild the Android project, test on emulator/phone and configure Google OAuth credentials for live SSO.
+
+## PHP 7.2 to 7.4 compatibility update
+
+The reported `T_ELLIPSIS` error on PHP 7.2/7.3 was caused by PHP 7.4-only array unpacking in `api.php`. This version uses `array_merge()` for the SQL parameter list and removes newer PHP constructs from `bootstrap.php`, including `??=`, `never` and `JSON_THROW_ON_ERROR`. Cookie options retain SameSite=Lax where supported natively and use the PHP 7.2 cookie-path compatibility technique otherwise.
+
+The existing admin, roles, stock, baskets, checkout, student discounts, Google SSO and API endpoints remain in place. Confirm the PHP interpreter version that Apache is using, the database credentials and the API response before retrying registration. Syntax checking on a later PHP version does not establish successful execution with PHP 7.2.

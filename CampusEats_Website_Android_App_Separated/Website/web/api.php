@@ -250,7 +250,8 @@ try
                 integerField($input, 'price_cents', 1, 1000000), integerField($input, 'stock', 0, 100000), $image, !empty($input['active']) ? 1 : 0];
             if ($id)
             {
-                query('UPDATE products SET vendor_id=?,name=?,description=?,category=?,price_cents=?,stock=?,image=?,active=? WHERE id=?', [...$values, $id]);
+                // array_merge() preserves the same positional SQL parameters on PHP 7.2 and newer.
+                query('UPDATE products SET vendor_id=?,name=?,description=?,category=?,price_cents=?,stock=?,image=?,active=? WHERE id=?', array_merge($values, [$id]));
             }
             else
             {

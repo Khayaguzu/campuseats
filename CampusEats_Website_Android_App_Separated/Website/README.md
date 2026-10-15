@@ -23,7 +23,9 @@ A PHP/MySQL campus food ordering website and an Android Studio Kotlin applicatio
 
 ## 1. Start the website in WampServer
 
-Requirements: WampServer with Apache, PHP **8.2 or newer**, and MySQL 8 or MariaDB 10.6 or newer. Enable PHP extensions `pdo_mysql`, `curl` and `openssl` through the WampServer PHP extensions menu. No Composer or Node installation is needed for the website.
+Requirements: WampServer with Apache, PHP **7.2 or newer** (including the existing WampServer PHP 7.2, 7.3 and 7.4 installations), and a compatible MySQL or MariaDB database. Enable PHP extensions `pdo_mysql`, `curl` and `openssl` through the WampServer PHP extensions menu. No Composer or Node installation is needed for the website. PHP 5.6 is not supported.
+
+**Local development note:** PHP 7.2, 7.3 and 7.4 are end-of-life and must not be used for a publicly accessible production deployment. The compatibility changes below allow local WampServer testing without requiring a PHP upgrade; use a supported PHP release for public hosting. In WampServer, select an existing PHP 7.4 installation if it is available, otherwise PHP 7.3 or PHP 7.2.
 
 1. Extract the archive. Copy the **contents of the `Website` folder**, not the enclosing project folder, into `C:\wamp64\www\campuseats`. The entry point must be `C:\wamp64\www\campuseats\web\index.php`. Keep the `Android_App` folder outside WampServer, for example in `Documents` or your Android Studio projects directory.
 2. Start WampServer and wait for its icon to turn green.
@@ -167,3 +169,17 @@ See `docs/IMAGE-CREDITS.md` for the bundled illustrative photo sources.
 - If the Android app says it cannot connect, keep Apache running and open `http://10.0.2.2/campuseats/web/` in the **Android emulator browser**. For a phone, follow the physical-device section and use the computer's LAN IP, not `localhost` or `10.0.2.2`.
 - If the Google sign-in option is unavailable, configure **both** `google_client_id` and `google_client_secret`, together with the exact OAuth callback. Email/password registration still works without Google setup.
 - Run the website and Android app against the same PHP API and MySQL database. Never configure Android to connect directly to the database.
+
+### Older WampServer PHP compatibility
+
+The API no longer uses PHP 7.4 array unpacking, PHP 7.4 null-coalescing assignment, or PHP 8.1 `never` return types. It also avoids requiring the PHP 7.3 `JSON_THROW_ON_ERROR` constant and supports PHP 7.2 session cookie configuration while retaining HttpOnly and SameSite=Lax semantics.
+
+If you previously saw `Parse error: unexpected ... (T_ELLIPSIS)` in `web/api.php` line 253, update the PHP source to this version and hard refresh the website. If the Apache-served PHP version is PHP 5.6, use WampServer's PHP menu to select one of your **already installed** PHP 7.2, 7.3 or 7.4 versions. No PHP installer is needed.
+
+For the existing nested GitHub layout in `C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Website`, keep `server/config.php` there and use:
+
+```text
+http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
+```
+
+In that layout, the `base_url` in `server/config.php` should point to the same URL without its trailing slash. Do not reimport an existing database or share `config.php` in GitHub.

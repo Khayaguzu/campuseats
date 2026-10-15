@@ -10,3 +10,7 @@ The website entry point is `http://localhost/campuseats/web/`. The Android emula
 **Read [Website/README.md](Website/README.md) for complete WampServer, Android, database and Google sign-in instructions.** The app intentionally displays the same interface as the website using Android WebView.
 
 No credentials are committed. Google sign-in requires owner-supplied Google OAuth configuration. The provided APK was built before these source fixes and should be rebuilt for an updated installation.
+
+## Legacy WampServer local PHP compatibility
+
+The PHP source has been adapted for PHP **7.2 to 7.4** syntax and runtime functions, so a local upgrade is not required if one of those versions is installed and selected in Apache. PHP 5.6 is not supported. For public hosting, upgrade to a currently supported PHP version because PHP 7.x has reached end of security support. See `Website/README.md` for the nested-folder URL used when cloning this repository directly inside WampServer.
