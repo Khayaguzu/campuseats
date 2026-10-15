@@ -1,0 +1,19 @@
+CAMPUSEATS: WEBSITE + ANDROID PROJECT
+
+1. Read README.md for the full WampServer and Android Studio instructions.
+2. Copy this CampusEats folder's contents into C:\wamp64\www\campuseats.
+3. Import database/schema.sql, then database/seed.sql in phpMyAdmin.
+4. Copy server/config.example.php to server/config.php and set your database details.
+5. Follow README.md to create your own first administrator using PHP CLI.
+6. Open http://localhost/campuseats/web/.
+7. Open the android folder in Android Studio and run the debug app.
+
+The app and website share the same database through the PHP API.
+The Android app uses a Kotlin WebView host to keep the interface identical.
+Students receive 10% off after their student number is verified by an admin.
+Admin registration requires approval by an existing admin.
+Google SSO needs your own OAuth configuration; see README.md section 3.
+The 32 foods, prices, quantities and photos are sample catalogue content.
+
+A compiled emulator-targeted debug APK is in apk/CampusEats-debug.apk.
+For a physical phone, change the server URL and rebuild as explained in README.md.

@@ -1,0 +1,91 @@
+CREATE DATABASE IF NOT EXISTS campuseats CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE campuseats;
+CREATE TABLE users (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ email VARCHAR(190) NOT NULL UNIQUE,
+ password_hash VARCHAR(255) NULL,
+ google_sub VARCHAR(255) NULL UNIQUE,
+ role ENUM('student','lecturer','admin') NOT NULL DEFAULT 'lecturer',
+ requested_role ENUM('student','lecturer','admin') NOT NULL DEFAULT 'lecturer',
+ student_number VARCHAR(40) NOT NULL DEFAULT '',
+ verified BOOLEAN NOT NULL DEFAULT FALSE,
+ phone VARCHAR(30) NOT NULL DEFAULT '',
+ theme ENUM('light','dark') NOT NULL DEFAULT 'light',
+ order_updates BOOLEAN NOT NULL DEFAULT TRUE,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+CREATE TABLE vendors (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ location VARCHAR(150) NOT NULL,
+ is_open BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB;
+CREATE TABLE products (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ vendor_id INT UNSIGNED NOT NULL,
+ name VARCHAR(120) NOT NULL,
+ description VARCHAR(500) NOT NULL,
+ category VARCHAR(40) NOT NULL,
+ price_cents INT UNSIGNED NOT NULL,
+ stock INT UNSIGNED NOT NULL DEFAULT 0,
+ image VARCHAR(120) NOT NULL,
+ active BOOLEAN NOT NULL DEFAULT TRUE,
+ FOREIGN KEY(vendor_id) REFERENCES vendors(id)
+) ENGINE=InnoDB;
+CREATE TABLE orders (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id INT UNSIGNED NOT NULL,
+ status ENUM('placed','preparing','ready','collected','cancelled') NOT NULL DEFAULT 'placed',
+ subtotal_cents INT UNSIGNED NOT NULL,
+ discount_cents INT UNSIGNED NOT NULL,
+ total_cents INT UNSIGNED NOT NULL,
+ pickup_at DATETIME NOT NULL,
+ notes VARCHAR(500) NOT NULL DEFAULT '',
+ payment_status ENUM('unpaid','paid') NOT NULL DEFAULT 'unpaid',
+ request_key CHAR(36) NOT NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(user_id, request_key),
+ FOREIGN KEY(user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE order_items (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ order_id INT UNSIGNED NOT NULL,
+ product_id INT UNSIGNED NOT NULL,
+ name VARCHAR(120) NOT NULL,
+ vendor_name VARCHAR(100) NOT NULL,
+ location VARCHAR(150) NOT NULL,
+ quantity INT UNSIGNED NOT NULL,
+ price_cents INT UNSIGNED NOT NULL,
+ FOREIGN KEY(order_id) REFERENCES orders(id),
+ FOREIGN KEY(product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE cart (
+ user_id INT UNSIGNED NOT NULL,
+ product_id INT UNSIGNED NOT NULL,
+ quantity INT UNSIGNED NOT NULL,
+ PRIMARY KEY(user_id, product_id),
+ FOREIGN KEY(user_id) REFERENCES users(id),
+ FOREIGN KEY(product_id) REFERENCES products(id)
+) ENGINE=InnoDB;
+CREATE TABLE rate_limits (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ bucket CHAR(64) NOT NULL,
+ occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ INDEX(bucket, occurred_at)
+) ENGINE=InnoDB;
+CREATE TABLE mobile_tickets (
+ ticket_hash CHAR(64) PRIMARY KEY,
+ user_id INT UNSIGNED NOT NULL,
+ challenge VARCHAR(64) NOT NULL,
+ expires_at DATETIME NOT NULL,
+ FOREIGN KEY(user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE audit_log (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ admin_id INT UNSIGNED NOT NULL,
+ action VARCHAR(60) NOT NULL,
+ target_id INT UNSIGNED NOT NULL,
+ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(admin_id) REFERENCES users(id)
+) ENGINE=InnoDB;

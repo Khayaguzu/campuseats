@@ -1,0 +1,309 @@
+<?php
+/** Same-origin JSON API used by both the browser and the Android application. */
+require __DIR__ . '/../server/bootstrap.php';
+$action = $_GET['action'] ?? 'bootstrap';
+$method = $_SERVER['REQUEST_METHOD'];
+$input = [];
+if ($method === 'POST')
+{
+    if (!hash_equals($_SESSION['csrf'], $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''))
+    {
+        fail('Your session changed. Refresh and try again.', 403);
+    }
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input))
+    {
+        fail('A JSON object is required.', 400);
+    }
+}
+elseif ($method !== 'GET')
+{
+    fail('Method not allowed.', 405);
+}
+$readActions = ['bootstrap', 'catalog', 'cart', 'orders', 'admin'];
+if ($method !== 'POST' && !in_array($action, $readActions, true))
+{
+    fail('Use POST for this operation.', 405);
+}
+try
+{
+    switch ($action)
+    {
+        case 'bootstrap':
+            respond(['user' => currentUser(), 'csrf' => $_SESSION['csrf'],
+                'sso_enabled' => $config['google_client_id'] !== '',
+                'vendors' => query('SELECT * FROM vendors ORDER BY id')->fetchAll()]);
+        case 'catalog':
+            respond(['products' => query('SELECT p.*,v.name AS vendor_name,v.location,v.is_open FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE p.active=1 ORDER BY p.id')->fetchAll()]);
+        case 'register':
+            rateLimit('register', 10);
+            $name = textField($input, 'name', 100);
+            $email = strtolower(textField($input, 'email', 190));
+            $password = (string)($input['password'] ?? '');
+            $role = $input['role'] ?? '';
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || (strlen($password) < 12 || strlen($password) > 72))
+            {
+                fail('Use a valid email and a password of 12 to 72 characters.');
+            }
+            if (!in_array($role, ['student', 'lecturer', 'admin'], true))
+            {
+                fail('Choose a valid account type.');
+            }
+            $number = textField($input, 'student_number', 40, $role === 'student');
+            if (query('SELECT id FROM users WHERE email=?', [$email])->fetch())
+            {
+                fail('This email is already registered. Please sign in.');
+            }
+            query('INSERT INTO users(name,email,password_hash,role,requested_role,student_number) VALUES (?,?,?,?,?,?)',
+                [$name, $email, password_hash($password, PASSWORD_DEFAULT), $role === 'admin' ? 'lecturer' : $role, $role, $number]);
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = (int)$pdo->lastInsertId();
+            respond(['user' => currentUser()], 201);
+        case 'login':
+            rateLimit('login');
+            $email = strtolower(textField($input, 'email', 190));
+            $user = query('SELECT * FROM users WHERE email=?', [$email])->fetch();
+            if (!$user || !$user['password_hash'] || !password_verify((string)($input['password'] ?? ''), $user['password_hash']))
+            {
+                fail('The email or password is incorrect.', 401);
+            }
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $user['id'];
+            respond(['user' => currentUser()]);
+        case 'logout':
+            $_SESSION = [];
+            session_regenerate_id(true);
+            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+            respond(['ok' => true]);
+        case 'settings':
+            $user = requireUser();
+            $name = textField($input, 'name', 100);
+            $phone = textField($input, 'phone', 30, false);
+            $theme = $input['theme'] ?? 'light';
+            if (!in_array($theme, ['light', 'dark'], true))
+            {
+                fail('Invalid theme.');
+            }
+            $number = textField($input, 'student_number', 40, $user['role'] === 'student');
+            // Changing the student identifier invalidates the previous verification.
+            $verified = $number === $user['student_number'] ? (int)$user['verified'] : 0;
+            query('UPDATE users SET name=?,phone=?,theme=?,student_number=?,verified=?,order_updates=? WHERE id=?',
+                [$name, $phone, $theme, $number, $verified, !empty($input['order_updates']) ? 1 : 0, $user['id']]);
+            respond(['user' => currentUser()]);
+        case 'password':
+            $user = requireUser();
+            rateLimit('password');
+            $hash = query('SELECT password_hash FROM users WHERE id=?', [$user['id']])->fetchColumn();
+            if ($hash && !password_verify((string)($input['current_password'] ?? ''), $hash))
+            {
+                fail('Current password is incorrect.');
+            }
+            $password = (string)($input['new_password'] ?? '');
+            if ((strlen($password) < 12 || strlen($password) > 72))
+            {
+                fail('Use at least 12 characters.');
+            }
+            query('UPDATE users SET password_hash=? WHERE id=?', [password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+            session_regenerate_id(true);
+            respond(['ok' => true]);
+        case 'cart':
+            $user = requireUser();
+            respond(['items' => query('SELECT c.quantity,p.*,v.name AS vendor_name,v.is_open FROM cart c JOIN products p ON p.id=c.product_id JOIN vendors v ON v.id=p.vendor_id WHERE c.user_id=? ORDER BY p.id', [$user['id']])->fetchAll()]);
+        case 'cart_set':
+            $user = requireUser();
+            $id = integerField($input, 'product_id', 1, 2147483647);
+            $qty = integerField($input, 'quantity', 0, 99);
+            $product = query('SELECT p.*,v.is_open FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE p.id=?', [$id])->fetch();
+            if ($qty === 0)
+            {
+                query('DELETE FROM cart WHERE user_id=? AND product_id=?', [$user['id'], $id]);
+            }
+            else
+            {
+                if (!$product || !$product['active'] || !$product['is_open'] || $product['stock'] < $qty)
+                {
+                    fail('This quantity is not currently available.');
+                }
+                query('INSERT INTO cart(user_id,product_id,quantity) VALUES (?,?,?) ON DUPLICATE KEY UPDATE quantity=VALUES(quantity)', [$user['id'], $id, $qty]);
+            }
+            respond(['ok' => true]);
+        case 'checkout':
+            $user = requireUser();
+            $key = textField($input, 'request_key', 36);
+            if (!preg_match('/^[a-zA-Z0-9-]{16,36}$/', $key))
+            {
+                fail('Invalid checkout request identifier.');
+            }
+            $pickup = strtotime(textField($input, 'pickup_at', 40));
+            if (!$pickup || $pickup < time() + 240 || $pickup > time() + 86400)
+            {
+                fail('Choose a collection time between 5 minutes and 24 hours from now.');
+            }
+            $notes = textField($input, 'notes', 500, false);
+            $pdo->beginTransaction();
+            // Serialize checkout per customer and lock inventory to prevent overselling.
+            $user = query('SELECT * FROM users WHERE id=? FOR UPDATE', [$user['id']])->fetch();
+            $old = query('SELECT id FROM orders WHERE user_id=? AND request_key=?', [$user['id'], $key])->fetch();
+            if ($old)
+            {
+                $pdo->commit();
+                respond(['order_id' => $old['id']]);
+            }
+            $items = query('SELECT c.quantity,p.*,v.name AS vendor_name,v.location,v.is_open FROM cart c JOIN products p ON p.id=c.product_id JOIN vendors v ON v.id=p.vendor_id WHERE c.user_id=? ORDER BY p.id FOR UPDATE', [$user['id']])->fetchAll();
+            if (!$items)
+            {
+                $pdo->rollBack();
+                fail('Your basket is empty.');
+            }
+            $subtotal = 0;
+            foreach ($items as $item)
+            {
+                if (!$item['active'] || !$item['is_open'] || $item['stock'] < $item['quantity'])
+                {
+                    $pdo->rollBack();
+                    fail($item['name'] . ' is unavailable in this quantity. Update your basket.');
+                }
+                $subtotal += (int)$item['price_cents'] * (int)$item['quantity'];
+            }
+            // All monetary calculations use integer cents; client prices are ignored.
+            $discount = $user['role'] === 'student' && $user['verified'] ? intdiv($subtotal + 5, 10) : 0;
+            query('INSERT INTO orders(user_id,subtotal_cents,discount_cents,total_cents,pickup_at,notes,request_key) VALUES (?,?,?,?,?,?,?)',
+                [$user['id'], $subtotal, $discount, $subtotal-$discount, gmdate('Y-m-d H:i:s', $pickup), $notes, $key]);
+            $orderId = (int)$pdo->lastInsertId();
+            foreach ($items as $item)
+            {
+                query('INSERT INTO order_items(order_id,product_id,name,vendor_name,location,quantity,price_cents) VALUES (?,?,?,?,?,?,?)',
+                    [$orderId, $item['id'], $item['name'], $item['vendor_name'], $item['location'], $item['quantity'], $item['price_cents']]);
+                query('UPDATE products SET stock=stock-? WHERE id=?', [$item['quantity'], $item['id']]);
+            }
+            query('DELETE FROM cart WHERE user_id=?', [$user['id']]);
+            $pdo->commit();
+            respond(['order_id' => $orderId], 201);
+        case 'orders':
+            $user = requireUser();
+            $orders = query('SELECT * FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100', [$user['id']])->fetchAll();
+            foreach ($orders as &$order)
+            {
+                $order['items'] = query('SELECT * FROM order_items WHERE order_id=?', [$order['id']])->fetchAll();
+            }
+            unset($order);
+            respond(['orders' => $orders]);
+        case 'cancel':
+        case 'order_status':
+            $user = requireUser($action === 'order_status');
+            $id = integerField($input, 'id', 1, 2147483647);
+            $pdo->beginTransaction();
+            $order = query('SELECT * FROM orders WHERE id=? FOR UPDATE', [$id])->fetch();
+            if (!$order || ($action === 'cancel' && (int)$order['user_id'] !== (int)$user['id']))
+            {
+                $pdo->rollBack();
+                fail('Order not found.', 404);
+            }
+            $status = $action === 'cancel' ? 'cancelled' : ($input['status'] ?? '');
+            $next = ['placed' => ['preparing','cancelled'], 'preparing' => ['ready','cancelled'], 'ready' => ['collected'], 'collected' => [], 'cancelled' => []];
+            if (!in_array($status, $next[$order['status']], true) || ($action === 'cancel' && $order['status'] !== 'placed'))
+            {
+                $pdo->rollBack();
+                fail('This order can no longer make that status change.');
+            }
+            if ($status === 'cancelled')
+            {
+                foreach (query('SELECT * FROM order_items WHERE order_id=? ORDER BY product_id', [$id])->fetchAll() as $item)
+                {
+                    query('UPDATE products SET stock=stock+? WHERE id=?', [$item['quantity'], $item['product_id']]);
+                }
+            }
+            query('UPDATE orders SET status=?,payment_status=? WHERE id=?', [$status, $status === 'collected' ? 'paid' : $order['payment_status'], $id]);
+            if ($action === 'order_status')
+            {
+                query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'order_' . $status, $id]);
+            }
+            $pdo->commit();
+            respond(['ok' => true]);
+        case 'admin':
+            requireUser(true);
+            $orders = query('SELECT o.*,u.name AS customer,u.email FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100')->fetchAll();
+            foreach ($orders as &$order)
+            {
+                $order['items'] = query('SELECT * FROM order_items WHERE order_id=?', [$order['id']])->fetchAll();
+            }
+            unset($order);
+            respond(['products' => query('SELECT * FROM products ORDER BY id')->fetchAll(),
+                'users' => query('SELECT id,name,email,role,requested_role,student_number,verified FROM users ORDER BY id DESC')->fetchAll(),
+                'orders' => $orders,
+                'stats' => query("SELECT COUNT(*) AS orders,COALESCE(SUM(CASE WHEN payment_status='paid' THEN total_cents ELSE 0 END),0) AS revenue_cents FROM orders")->fetch(),
+                'images' => array_map('basename', glob(__DIR__ . '/assets/food/*.jpg'))]);
+        case 'product_save':
+            $user = requireUser(true);
+            $id = integerField($input, 'id', 0, 2147483647);
+            $vendor = integerField($input, 'vendor_id', 1, 2147483647);
+            if (!query('SELECT id FROM vendors WHERE id=?', [$vendor])->fetch())
+            {
+                fail('Vendor not found.');
+            }
+            $image = textField($input, 'image', 120);
+            if (basename($image) !== $image || !is_file(__DIR__ . '/assets/food/' . $image) || !preg_match('/\.(jpg|png|webp)$/i', $image))
+            {
+                fail('Choose an existing food image.');
+            }
+            $values = [$vendor, textField($input, 'name', 120), textField($input, 'description', 500), textField($input, 'category', 40),
+                integerField($input, 'price_cents', 1, 1000000), integerField($input, 'stock', 0, 100000), $image, !empty($input['active']) ? 1 : 0];
+            if ($id)
+            {
+                query('UPDATE products SET vendor_id=?,name=?,description=?,category=?,price_cents=?,stock=?,image=?,active=? WHERE id=?', [...$values, $id]);
+            }
+            else
+            {
+                query('INSERT INTO products(vendor_id,name,description,category,price_cents,stock,image,active) VALUES (?,?,?,?,?,?,?,?)', $values);
+                $id = (int)$pdo->lastInsertId();
+            }
+            query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'product_save', $id]);
+            respond(['ok' => true]);
+        case 'vendor_save':
+            $user = requireUser(true);
+            $id = integerField($input, 'id', 1, 2147483647);
+            query('UPDATE vendors SET name=?,location=?,is_open=? WHERE id=?', [textField($input, 'name', 100), textField($input, 'location', 150), !empty($input['is_open']) ? 1 : 0, $id]);
+            query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'vendor_save', $id]);
+            respond(['ok' => true]);
+        case 'user_approve':
+            $user = requireUser(true);
+            $id = integerField($input, 'id', 1, 2147483647);
+            if ($id === (int)$user['id'])
+            {
+                fail('An administrator cannot approve their own account.');
+            }
+            $target = query('SELECT * FROM users WHERE id=?', [$id])->fetch();
+            if (!$target)
+            {
+                fail('User not found.', 404);
+            }
+            query('UPDATE users SET role=requested_role,verified=1 WHERE id=?', [$id]);
+            query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'user_approve', $id]);
+            respond(['ok' => true]);
+        case 'role_request':
+            $user = requireUser();
+            if ($user['role'] === 'admin')
+            {
+                fail('Administrator roles are managed by another administrator.');
+            }
+            $role = $input['role'] ?? '';
+            if (!in_array($role, ['student','lecturer','admin'], true))
+            {
+                fail('Invalid role.');
+            }
+            $number = textField($input, 'student_number', 40, $role === 'student');
+            query('UPDATE users SET requested_role=?,role=?,verified=0,student_number=? WHERE id=?', [$role, $role === 'admin' ? 'lecturer' : $role, $number, $user['id']]);
+            respond(['user' => currentUser()]);
+        default:
+            fail('Endpoint not found.', 404);
+    }
+}
+catch (Throwable $error)
+{
+    if ($pdo->inTransaction())
+    {
+        $pdo->rollBack();
+    }
+    error_log((string)$error);
+    fail('The request could not be completed. Please refresh and try again.', 500);
+}
