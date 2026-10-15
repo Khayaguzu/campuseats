@@ -1,6 +1,7 @@
 <?php
 /** Same-origin JSON API used by both the browser and the Android application. */
 require __DIR__ . '/../server/bootstrap.php';
+require __DIR__ . '/../server/payments.php';
 $action = $_GET['action'] ?? 'bootstrap';
 $method = $_SERVER['REQUEST_METHOD'];
 $input = [];
@@ -31,8 +32,9 @@ try
     {
         case 'bootstrap':
             respond(['user' => currentUser(), 'csrf' => $_SESSION['csrf'],
-                'sso_enabled' => $config['google_client_id'] !== '',
-                'vendors' => query('SELECT * FROM vendors ORDER BY id')->fetchAll()]);
+                'sso_enabled' => $config['google_client_id'] !== '' && $config['google_client_secret'] !== '',
+                'vendors' => query('SELECT * FROM vendors ORDER BY id')->fetchAll(),
+                'payment_options' => paymentOptions($config)]);
         case 'catalog':
             respond(['products' => query('SELECT p.*,v.name AS vendor_name,v.location,v.is_open FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE p.active=1 ORDER BY p.id')->fetchAll()]);
         case 'register':
@@ -129,17 +131,24 @@ try
             respond(['ok' => true]);
         case 'checkout':
             $user = requireUser();
+            requirePaymentSchema($pdo);
             $key = textField($input, 'request_key', 36);
             if (!preg_match('/^[a-zA-Z0-9-]{16,36}$/', $key))
             {
                 fail('Invalid checkout request identifier.');
             }
             $pickup = strtotime(textField($input, 'pickup_at', 40));
-            if (!$pickup || $pickup < time() + 240 || $pickup > time() + 86400)
+            if (!$pickup || $pickup < time() + 300 || $pickup > time() + 86400)
             {
                 fail('Choose a collection time between 5 minutes and 24 hours from now.');
             }
             $notes = textField($input, 'notes', 500, false);
+            $method = (string)($input['payment_method'] ?? '');
+            $available = paymentOptions($config);
+            if (!in_array($method, ['demo', 'payfast'], true) || empty($available[$method]))
+            {
+                fail('Automatic payment is not available. Configure PayFast for real payments, or enable local demo mode for simulated testing.');
+            }
             $pdo->beginTransaction();
             // Serialize checkout per customer and lock inventory to prevent overselling.
             $user = query('SELECT * FROM users WHERE id=? FOR UPDATE', [$user['id']])->fetch();
@@ -147,7 +156,7 @@ try
             if ($old)
             {
                 $pdo->commit();
-                respond(['order_id' => $old['id']]);
+                respond(['order_id' => $old['id'], 'payment_pending' => true]);
             }
             $items = query('SELECT c.quantity,p.*,v.name AS vendor_name,v.location,v.is_open FROM cart c JOIN products p ON p.id=c.product_id JOIN vendors v ON v.id=p.vendor_id WHERE c.user_id=? ORDER BY p.id FOR UPDATE', [$user['id']])->fetchAll();
             if (!$items)
@@ -167,6 +176,11 @@ try
             }
             // All monetary calculations use integer cents; client prices are ignored.
             $discount = $user['role'] === 'student' && $user['verified'] ? intdiv($subtotal + 5, 10) : 0;
+            if ($method === 'payfast' && ($subtotal - $discount) < 500)
+            {
+                $pdo->rollBack();
+                fail('PayFast requires a minimum order total of R5.00.');
+            }
             query('INSERT INTO orders(user_id,subtotal_cents,discount_cents,total_cents,pickup_at,notes,request_key) VALUES (?,?,?,?,?,?,?)',
                 [$user['id'], $subtotal, $discount, $subtotal-$discount, gmdate('Y-m-d H:i:s', $pickup), $notes, $key]);
             $orderId = (int)$pdo->lastInsertId();
@@ -176,12 +190,85 @@ try
                     [$orderId, $item['id'], $item['name'], $item['vendor_name'], $item['location'], $item['quantity'], $item['price_cents']]);
                 query('UPDATE products SET stock=stock-? WHERE id=?', [$item['quantity'], $item['id']]);
             }
+            // New orders always begin unpaid. The existing stock reservation and order ID remain intact.
+            query('INSERT INTO order_payments(order_id,method,bank_reference) VALUES (?,?,?)',
+                [$orderId, $method, null]);
             query('DELETE FROM cart WHERE user_id=?', [$user['id']]);
             $pdo->commit();
-            respond(['order_id' => $orderId], 201);
+            // Internal database ID is returned to start payment, but is not a valid collection code.
+            respond(['order_id' => $orderId, 'payment_pending' => true], 201);
+        case 'payment_demo_complete':
+            // Test-only pathway, not a real payment processor. It is inaccessible remotely.
+            $user = requireUser();
+            requirePaymentSchema($pdo);
+            if (!paymentOptions($config)['demo'])
+            {
+                fail('Local simulated payment is disabled or cannot be used from this address.', 403);
+            }
+            // The customer re-enters CampusEats credentials before payment completion.
+            requirePaymentLogin($user, $input);
+            $id = integerField($input, 'id', 1, 2147483647);
+            $pdo->beginTransaction();
+            $order = query('SELECT * FROM orders WHERE id=? AND user_id=? FOR UPDATE', [$id, $user['id']])->fetch();
+            $payment = query('SELECT * FROM order_payments WHERE order_id=? FOR UPDATE', [$id])->fetch();
+            if (!$order || !$payment || $payment['method'] !== 'demo'
+                || $order['status'] === 'cancelled')
+            {
+                $pdo->rollBack();
+                fail('This order cannot use simulated payment.', 422);
+            }
+            if ($payment['state'] === 'paid' && $order['payment_status'] === 'paid')
+            {
+                $pdo->commit();
+                respond(['paid' => true, 'collection_number' => 'CE' . str_pad((string)$id, 6, '0', STR_PAD_LEFT), 'demo' => true]);
+            }
+            if ($payment['state'] !== 'pending' || $order['payment_status'] !== 'unpaid')
+            {
+                $pdo->rollBack();
+                fail('The order is not awaiting a test payment.');
+            }
+            $testReference = 'DEMO-' . $id . '-' . bin2hex(random_bytes(8));
+            query('UPDATE order_payments SET state=?,gateway_payment_id=?,confirmed_at=UTC_TIMESTAMP() WHERE order_id=?', ['paid', $testReference, $id]);
+            query('UPDATE orders SET payment_status=? WHERE id=?', ['paid', $id]);
+            $pdo->commit();
+            respond(['paid' => true, 'collection_number' => 'CE' . str_pad((string)$id, 6, '0', STR_PAD_LEFT), 'demo' => true]);
+        case 'payment_start':
+            $user = requireUser();
+            requirePaymentSchema($pdo);
+            if (!paymentOptions($config)['payfast'])
+            {
+                fail('Online payment is not currently available.');
+            }
+            // Require the same account's password before generating a gateway link.
+            requirePaymentLogin($user, $input);
+            $id = integerField($input, 'id', 1, 2147483647);
+            $pdo->beginTransaction();
+            $order = query('SELECT * FROM orders WHERE id=? AND user_id=? FOR UPDATE', [$id, $user['id']])->fetch();
+            $payment = query('SELECT * FROM order_payments WHERE order_id=? FOR UPDATE', [$id])->fetch();
+            if (!$order || !$payment || $payment['method'] !== 'payfast' || $payment['state'] !== 'pending'
+                || $order['status'] === 'cancelled' || $order['payment_status'] !== 'unpaid')
+            {
+                $pdo->rollBack();
+                fail('This order cannot be paid using PayFast.');
+            }
+            if ((int)$order['total_cents'] < 500)
+            {
+                $pdo->rollBack();
+                fail('PayFast payments require an order total of at least R5.00.');
+            }
+            // The short-lived token allows the Android app to continue in an external browser
+            // without sharing its authenticated WebView cookies or exposing the order to strangers.
+            $token = bin2hex(random_bytes(32));
+            query('UPDATE order_payments SET payment_token_hash=?,payment_token_expires_at=DATE_ADD(UTC_TIMESTAMP(),INTERVAL 15 MINUTE) WHERE order_id=?',
+                [hash('sha256', $token), $id]);
+            $pdo->commit();
+            respond(['payment_url' => 'pay.php?token=' . $token]);
         case 'orders':
             $user = requireUser();
-            $orders = query('SELECT * FROM orders WHERE user_id=? ORDER BY id DESC LIMIT 100', [$user['id']])->fetchAll();
+            requirePaymentSchema($pdo);
+            $orders = query('SELECT o.*,p.method AS payment_method,p.state AS payment_state,p.bank_reference
+                FROM orders o LEFT JOIN order_payments p ON p.order_id=o.id
+                WHERE o.user_id=? ORDER BY o.id DESC LIMIT 100', [$user['id']])->fetchAll();
             foreach ($orders as &$order)
             {
                 $order['items'] = query('SELECT * FROM order_items WHERE order_id=?', [$order['id']])->fetchAll();
@@ -206,6 +293,18 @@ try
                 $pdo->rollBack();
                 fail('This order can no longer make that status change.');
             }
+            // Never prepare, hand out, or mark a new/legacy order collected until paid.
+            if ($status !== 'cancelled' && $order['payment_status'] !== 'paid')
+            {
+                $pdo->rollBack();
+                fail('Payment must be verified before this order can be prepared or collected.');
+            }
+            // Refunds cannot be handled by changing an order status. Protect already-paid orders.
+            if ($status === 'cancelled' && $order['payment_status'] === 'paid')
+            {
+                $pdo->rollBack();
+                fail('Paid orders require an administrator-managed refund before cancellation.');
+            }
             if ($status === 'cancelled')
             {
                 foreach (query('SELECT * FROM order_items WHERE order_id=? ORDER BY product_id', [$id])->fetchAll() as $item)
@@ -213,7 +312,7 @@ try
                     query('UPDATE products SET stock=stock+? WHERE id=?', [$item['quantity'], $item['product_id']]);
                 }
             }
-            query('UPDATE orders SET status=?,payment_status=? WHERE id=?', [$status, $status === 'collected' ? 'paid' : $order['payment_status'], $id]);
+            query('UPDATE orders SET status=? WHERE id=?', [$status, $id]);
             if ($action === 'order_status')
             {
                 query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'order_' . $status, $id]);
@@ -222,7 +321,10 @@ try
             respond(['ok' => true]);
         case 'admin':
             requireUser(true);
-            $orders = query('SELECT o.*,u.name AS customer,u.email FROM orders o JOIN users u ON u.id=o.user_id ORDER BY o.id DESC LIMIT 100')->fetchAll();
+            requirePaymentSchema($pdo);
+            $orders = query('SELECT o.*,u.name AS customer,u.email,p.method AS payment_method,p.state AS payment_state,p.bank_reference
+                FROM orders o JOIN users u ON u.id=o.user_id
+                LEFT JOIN order_payments p ON p.order_id=o.id ORDER BY o.id DESC LIMIT 100')->fetchAll();
             foreach ($orders as &$order)
             {
                 $order['items'] = query('SELECT * FROM order_items WHERE order_id=?', [$order['id']])->fetchAll();
@@ -231,7 +333,7 @@ try
             respond(['products' => query('SELECT * FROM products ORDER BY id')->fetchAll(),
                 'users' => query('SELECT id,name,email,role,requested_role,student_number,verified FROM users ORDER BY id DESC')->fetchAll(),
                 'orders' => $orders,
-                'stats' => query("SELECT COUNT(*) AS orders,COALESCE(SUM(CASE WHEN payment_status='paid' THEN total_cents ELSE 0 END),0) AS revenue_cents FROM orders")->fetch(),
+                'stats' => query("SELECT COUNT(*) AS orders,COALESCE(SUM(CASE WHEN o.payment_status='paid' AND (p.method IS NULL OR p.method <> 'demo') THEN o.total_cents ELSE 0 END),0) AS revenue_cents FROM orders o LEFT JOIN order_payments p ON p.order_id=o.id")->fetch(),
                 'images' => array_map('basename', glob(__DIR__ . '/assets/food/*.jpg'))]);
         case 'product_save':
             $user = requireUser(true);
@@ -250,7 +352,8 @@ try
                 integerField($input, 'price_cents', 1, 1000000), integerField($input, 'stock', 0, 100000), $image, !empty($input['active']) ? 1 : 0];
             if ($id)
             {
-                query('UPDATE products SET vendor_id=?,name=?,description=?,category=?,price_cents=?,stock=?,image=?,active=? WHERE id=?', [...$values, $id]);
+                // array_merge() preserves the same positional SQL parameters on PHP 7.2 and newer.
+                query('UPDATE products SET vendor_id=?,name=?,description=?,category=?,price_cents=?,stock=?,image=?,active=? WHERE id=?', array_merge($values, [$id]));
             }
             else
             {

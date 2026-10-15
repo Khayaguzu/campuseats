@@ -36,7 +36,9 @@ class MainActivity : Activity()
     private lateinit var progress: ProgressBar
     private lateinit var errorPanel: LinearLayout
     private val preferences by lazy { getSharedPreferences("sso_flow", MODE_PRIVATE) }
-    private val baseUri by lazy { Uri.parse(BuildConfig.BASE_URL) }
+    private val siteUrl by lazy { BuildConfig.BASE_URL.trimEnd('/') + "/" }
+    private val ssoUrl by lazy { BuildConfig.SSO_URL.trimEnd('/') + "/" }
+    private val baseUri by lazy { Uri.parse(siteUrl) }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?)
@@ -69,7 +71,7 @@ class MainActivity : Activity()
         {
             errorPanel.visibility = View.GONE
             webView.visibility = View.VISIBLE
-            webView.loadUrl(BuildConfig.BASE_URL + "index.php")
+            webView.loadUrl(siteUrl + "index.php")
         })
         errorPanel.addView(retry)
         errorPanel.visibility = View.GONE
@@ -117,6 +119,22 @@ class MainActivity : Activity()
                 val uri = request.url
                 if (isTrusted(uri))
                 {
+                    // Open the secure payment hand-off in the system browser so that
+                    // PayFast and any banking authentication never run inside WebView.
+                    if (uri.path?.endsWith("/pay.php") == true && uri.getQueryParameter("token") != null)
+                    {
+                        try
+                        {
+                            startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+                        }
+                        catch (_: android.content.ActivityNotFoundException)
+                        {
+                            AlertDialog.Builder(this@MainActivity)
+                                .setMessage("Install a browser to complete your payment.")
+                                .setPositiveButton("OK", null).show()
+                        }
+                        return true
+                    }
                     if (uri.path?.endsWith("/sso.php") == true && uri.getQueryParameter("mode") != "redeem")
                     {
                         beginSingleSignOn()
@@ -149,7 +167,7 @@ class MainActivity : Activity()
         {
             if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null)
             {
-                webView.loadUrl(BuildConfig.BASE_URL + "index.php")
+                webView.loadUrl(siteUrl + "index.php")
             }
         }
     }
@@ -168,7 +186,7 @@ class MainActivity : Activity()
         val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
         val challenge = Base64.encodeToString(digest, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         preferences.edit().putString("verifier", verifier).putLong("started", System.currentTimeMillis()).apply()
-        val uri = Uri.parse(BuildConfig.SSO_URL + "sso.php").buildUpon()
+        val uri = Uri.parse(ssoUrl + "sso.php").buildUpon()
             .appendQueryParameter("challenge", challenge).build()
         try
         {
@@ -176,6 +194,7 @@ class MainActivity : Activity()
         }
         catch (_: android.content.ActivityNotFoundException)
         {
+            preferences.edit().clear().apply()
             AlertDialog.Builder(this).setMessage("Install a browser to use Google sign-in.")
                 .setPositiveButton("OK", null).show()
         }
@@ -201,7 +220,7 @@ class MainActivity : Activity()
             "&verifier=" + URLEncoder.encode(verifier, "UTF-8")
         errorPanel.visibility = View.GONE
         webView.visibility = View.VISIBLE
-        webView.postUrl(BuildConfig.BASE_URL + "sso.php?mode=redeem", body.toByteArray(Charsets.UTF_8))
+        webView.postUrl(siteUrl + "sso.php?mode=redeem", body.toByteArray(Charsets.UTF_8))
         return true
     }
 

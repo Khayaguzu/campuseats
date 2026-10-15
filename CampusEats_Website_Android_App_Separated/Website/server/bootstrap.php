@@ -5,6 +5,12 @@ $configPath = __DIR__ . '/config.php';
 if (!is_file($configPath))
 {
     http_response_code(503);
+    if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'api.php')
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Server setup required. Copy server/config.example.php to server/config.php, import the database and configure your WampServer credentials.']);
+        exit;
+    }
     exit('Setup required: copy server/config.example.php to server/config.php and follow README.md.');
 }
 $config = require $configPath;
@@ -18,10 +24,23 @@ set_exception_handler(function (Throwable $error): void
 });
 ini_set('session.use_strict_mode', '1');
 session_name('campuseats');
-session_set_cookie_params([
-    'lifetime' => 0, 'path' => '/', 'httponly' => true,
-    'secure' => $config['secure_cookies'], 'samesite' => 'Lax'
-]);
+// PHP 7.3 introduced the options-array form with native SameSite support.
+// On PHP 7.2 the path suffix is the compatibility technique for SameSite=Lax.
+// Both branches retain the original session lifetime, HttpOnly and Secure settings.
+if (PHP_VERSION_ID >= 70300)
+{
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'httponly' => true,
+        'secure' => (bool)$config['secure_cookies'],
+        'samesite' => 'Lax'
+    ]);
+}
+else
+{
+    session_set_cookie_params(0, '/; SameSite=Lax', '', (bool)$config['secure_cookies'], true);
+}
 session_start();
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
@@ -34,7 +53,11 @@ $pdo = new PDO(
      PDO::ATTR_EMULATE_PREPARES => false]
 );
 $pdo->exec("SET time_zone = '+00:00'");
-$_SESSION['csrf'] ??= bin2hex(random_bytes(32));
+// Assign the anti-CSRF token only once per session. The explicit check works on PHP 7.2.
+if (!isset($_SESSION['csrf']))
+{
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+}
 
 function query(string $sql, array $args = []): PDOStatement
 {
@@ -44,15 +67,28 @@ function query(string $sql, array $args = []): PDOStatement
     return $stmt;
 }
 
-function respond(array $data, int $status = 200): never
+/** Send the same JSON response as before; terminate execution after responding.
+ * PHP 7.2 does not support the PHP 8.1 "never" return type or JSON_THROW_ON_ERROR.
+ */
+function respond(array $data, int $status = 200): void
 {
+    $body = json_encode($data);
+    if ($body === false)
+    {
+        error_log('CampusEats JSON encoding error: ' . json_last_error_msg());
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        echo '{"error":"The server could not create a response."}';
+        exit;
+    }
+
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($data, JSON_THROW_ON_ERROR);
+    echo $body;
     exit;
 }
 
-function fail(string $message, int $status = 422): never
+function fail(string $message, int $status = 422): void
 {
     respond(['error' => $message], $status);
 }
