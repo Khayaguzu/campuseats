@@ -5,6 +5,12 @@ $configPath = __DIR__ . '/config.php';
 if (!is_file($configPath))
 {
     http_response_code(503);
+    if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'api.php')
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Server setup required. Copy server/config.example.php to server/config.php, import the database and configure your WampServer credentials.']);
+        exit;
+    }
     exit('Setup required: copy server/config.example.php to server/config.php and follow README.md.');
 }
 $config = require $configPath;

@@ -1,19 +1,16 @@
-CAMPUSEATS: WEBSITE + ANDROID PROJECT
+CAMPUSEATS: SEPARATED WEBSITE AND KOTLIN ANDROID PROJECT
 
-1. Read README.md for the full WampServer and Android Studio instructions.
-2. Copy this CampusEats folder's contents into C:\wamp64\www\campuseats.
-3. Import database/schema.sql, then database/seed.sql in phpMyAdmin.
-4. Copy server/config.example.php to server/config.php and set your database details.
-5. Follow README.md to create your own first administrator using PHP CLI.
-6. Open http://localhost/campuseats/web/.
-7. Open the android folder in Android Studio and run the debug app.
+1. Copy the CONTENTS of Website to C:\wamp64\www\campuseats.
+   Verify C:\wamp64\www\campuseats\web\index.php exists.
+2. Start Apache and MySQL in WampServer.
+3. Import Website/database/schema.sql and then Website/database/seed.sql using phpMyAdmin.
+4. Copy Website/server/config.example.php to Website/server/config.php in the installed website, and configure MySQL credentials and port.
+5. From C:\wamp64\www\campuseats, run the PHP CLI administrator setup:
+   php server\create-admin.php admin@example.com "Campus Administrator" "YourStrongPassword123!"
+6. Open http://localhost/campuseats/web/ in a browser.
+7. Open Android_App in Android Studio. The emulator uses 10.0.2.2 to access WampServer.
+8. To use a real phone, update Android_App/gradle.properties for the computer's LAN IP, enable Apache private-network access, and rebuild the APK.
+9. For Google SSO, follow Website/README.md and configure both Google credentials and the OAuth callback.
 
-The app and website share the same database through the PHP API.
-The Android app uses a Kotlin WebView host to keep the interface identical.
-Students receive 10% off after their student number is verified by an admin.
-Admin registration requires approval by an existing admin.
-Google SSO needs your own OAuth configuration; see README.md section 3.
-The 32 foods, prices, quantities and photos are sample catalogue content.
-
-A compiled emulator-targeted debug APK is in apk/CampusEats-debug.apk.
-For a physical phone, change the server URL and rebuild as explained in README.md.
+Existing features, roles, menus, stock management, orders and student discounts are preserved.
+For detailed steps and troubleshooting, read Website/README.md.

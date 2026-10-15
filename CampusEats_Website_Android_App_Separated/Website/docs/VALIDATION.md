@@ -42,3 +42,9 @@ The complete Gradle `assembleDebug` build succeeded using JDK 17, Gradle 8.9, An
 - Actual vendor foods, prices, stock, opening arrangements, ingredients and photographs.
 
 These checks are not implied by successful source validation or a debug APK build. The package implements campus collection and payment on collection, not online card processing.
+
+## Maintenance update, 15 October 2026
+
+Repairs to the separated distribution improve setup feedback, OAuth button gating, documented checkout lead time and Android URL handling. PHP lint and JavaScript syntax checks passed, and the PHP API was smoke-tested without a configured database to confirm that it returns a useful JSON setup error. An earlier validation record above describes tests on the original release and must not be interpreted as re-running the full MySQL integration suite or rebuilding the APK after these maintenance edits.
+
+**Still required on the owner's computer:** import the MySQL schema and seed, configure `server/config.php`, run the supplied database integration tests against an isolated database, rebuild the Android project, test on emulator/phone and configure Google OAuth credentials for live SSO.

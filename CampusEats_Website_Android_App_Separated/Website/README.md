@@ -4,7 +4,7 @@ A PHP/MySQL campus food ordering website and an Android Studio Kotlin applicatio
 
 ## What is included
 
-- A responsive interface shared by the website and Android app.
+- A responsive interface shared by the website and Android app. The two folders are separated for development and deployment.
 - 32 sample foods with selling prices in ZAR, stock quantities, allergen descriptions and locally bundled illustrative photographs.
 - The four original vendors: The Grill Spot, Pizza Piazza, Fresh & Green and Coffee Corner.
 - Student, lecturer and administrator registration. Administrator registration creates an approval request, not immediate administrative privileges.
@@ -25,7 +25,7 @@ A PHP/MySQL campus food ordering website and an Android Studio Kotlin applicatio
 
 Requirements: WampServer with Apache, PHP **8.2 or newer**, and MySQL 8 or MariaDB 10.6 or newer. Enable PHP extensions `pdo_mysql`, `curl` and `openssl` through the WampServer PHP extensions menu. No Composer or Node installation is needed for the website.
 
-1. Extract this archive. Copy the contents of `CampusEats` to `C:\wamp64\www\campuseats`. The entry point should be `C:\wamp64\www\campuseats\web\index.php`.
+1. Extract the archive. Copy the **contents of the `Website` folder**, not the enclosing project folder, into `C:\wamp64\www\campuseats`. The entry point must be `C:\wamp64\www\campuseats\web\index.php`. Keep the `Android_App` folder outside WampServer, for example in `Documents` or your Android Studio projects directory.
 2. Start WampServer and wait for its icon to turn green.
 3. Open `http://localhost/phpmyadmin`. Import `database/schema.sql` first, then `database/seed.sql`. Import each once into a clean database. The scripts create and select `campuseats`.
 4. Copy `server/config.example.php` to `server/config.php`.
@@ -52,13 +52,13 @@ Only `web/` should be publicly served in a production virtual host. Directory-le
 
 ## 2. Open and run the Android app
 
-A successfully built debug APK is included at **`apk/CampusEats-debug.apk`**. It targets the standard Android emulator's host address (`10.0.2.2`) with WampServer at `/campuseats/web/`. To use a real phone or a different server address, change the properties below and rebuild. The APK has been built successfully but has not been run on an Android device here.
+A successfully built debug APK is included at **`Android_App/apk/CampusEats-debug.apk`**. It targets the standard Android emulator's host address (`10.0.2.2`) with WampServer at `/campuseats/web/`. To use a real phone or a different server address, change the properties below and rebuild. The APK has been built successfully but has not been run on an Android device here.
 
 
 1. Install Android Studio with the Android SDK and use its JDK 17-compatible Gradle runtime.
-2. Choose **Open**, then select the `android` directory in this package, not the whole CampusEats directory.
+2. Choose **Open**, then select the `Android_App` directory in this package. Do not open the `Website` directory as an Android Studio project.
 3. Let Gradle sync. The project includes a Gradle 8.9 wrapper, Android Gradle Plugin 8.7.3 and Kotlin 2.0.21. Install Android SDK Platform 35 and Build Tools when prompted.
-4. Open `android/gradle.properties`.
+4. Open `Android_App/gradle.properties`.
 5. For the standard Android emulator running on the same computer as WampServer, retain:
 
 ```properties
@@ -81,7 +81,7 @@ Local HTTP is enabled **only in the debug variant**. A release build blocks clea
 gradlew.bat assembleDebug
 ```
 
-The APK output is `android/app/build/outputs/apk/debug/app-debug.apk`. For distribution, configure your own signing key using Android Studio's signed APK flow. An unsigned project is not a published Play Store application.
+The APK output is `Android_App/app/build/outputs/apk/debug/app-debug.apk`. The prebuilt APK under `Android_App/apk/` reflects the original build, and must be rebuilt to include subsequent Kotlin fixes. For distribution, configure your own signing key using Android Studio's signed APK flow. An unsigned project is not a published Play Store application.
 
 ## 3. Configure Google single sign-on
 
@@ -139,7 +139,7 @@ Profile and appearance settings are stored centrally. Saved changes appear in an
 | `server/create-admin.php` | CLI-only first administrator creation |
 | `database/schema.sql` | Tables, indexes and foreign keys |
 | `database/seed.sql` | Four vendors and 32 sample food items |
-| `android/` | Android Studio Kotlin project |
+| `../Android_App/` | Android Studio Kotlin project, outside the WampServer website directory |
 | `tests/integration.py` | Real-server integration checks |
 | `docs/API.md` | API contract |
 | `docs/VALIDATION.md` | Checks performed and remaining validation |
@@ -158,3 +158,12 @@ Before real use, replace the sample catalogue and photos, use a restricted datab
 - Google userinfo endpoint: https://developers.google.com/identity/openid-connect/reference
 
 See `docs/IMAGE-CREDITS.md` for the bundled illustrative photo sources.
+
+## 7. Troubleshooting the separated project
+
+- If the website displays **Server setup required**, confirm `C:\wamp64\www\campuseats\server\config.php` exists, then import `Website/database/schema.sql` and `Website/database/seed.sql` into the same MySQL or MariaDB server configured in that file. These source paths refer to the extracted archive.
+- If phpMyAdmin uses MariaDB on port `3307`, change `db_port` in `server/config.php` to match. Check that `pdo_mysql` is enabled in the PHP version Apache is using.
+- If you see an HTTP 404 at `/campuseats/web/`, check that the entry point is directly under `C:\wamp64\www\campuseats\web\index.php`, not under an extra `Website` directory.
+- If the Android app says it cannot connect, keep Apache running and open `http://10.0.2.2/campuseats/web/` in the **Android emulator browser**. For a phone, follow the physical-device section and use the computer's LAN IP, not `localhost` or `10.0.2.2`.
+- If the Google sign-in option is unavailable, configure **both** `google_client_id` and `google_client_secret`, together with the exact OAuth callback. Email/password registration still works without Google setup.
+- Run the website and Android app against the same PHP API and MySQL database. Never configure Android to connect directly to the database.

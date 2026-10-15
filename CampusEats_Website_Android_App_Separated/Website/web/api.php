@@ -31,7 +31,7 @@ try
     {
         case 'bootstrap':
             respond(['user' => currentUser(), 'csrf' => $_SESSION['csrf'],
-                'sso_enabled' => $config['google_client_id'] !== '',
+                'sso_enabled' => $config['google_client_id'] !== '' && $config['google_client_secret'] !== '',
                 'vendors' => query('SELECT * FROM vendors ORDER BY id')->fetchAll()]);
         case 'catalog':
             respond(['products' => query('SELECT p.*,v.name AS vendor_name,v.location,v.is_open FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE p.active=1 ORDER BY p.id')->fetchAll()]);
@@ -135,7 +135,7 @@ try
                 fail('Invalid checkout request identifier.');
             }
             $pickup = strtotime(textField($input, 'pickup_at', 40));
-            if (!$pickup || $pickup < time() + 240 || $pickup > time() + 86400)
+            if (!$pickup || $pickup < time() + 300 || $pickup > time() + 86400)
             {
                 fail('Choose a collection time between 5 minutes and 24 hours from now.');
             }

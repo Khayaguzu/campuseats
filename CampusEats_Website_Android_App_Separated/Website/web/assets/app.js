@@ -6,6 +6,13 @@ const $ = (selector) => document.querySelector(selector);
 const money = (cents) => new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(Number(cents) / 100);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dateText = (value) => new Date(value.replace(' ', 'T') + 'Z').toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg', dateStyle: 'medium', timeStyle: 'short' });
+// HTML datetime-local expects device-local time rather than a UTC timestamp.
+const localDateTime = (timestamp) =>
+{
+    const date = new Date(timestamp);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+};
 const route = () => location.hash.slice(1) || 'menu';
 let toastTimer;
 let renderVersion = 0;
@@ -110,9 +117,11 @@ function basketView()
     }
     const subtotal = state.cart.reduce((sum, p) => sum + Number(p.price_cents) * Number(p.quantity), 0);
     const discount = state.user.role === 'student' && Number(state.user.verified) ? Math.round(subtotal / 10) : 0;
-    const localTime = new Date(Date.now() + 20 * 60000);
-    localTime.setMinutes(localTime.getMinutes() - localTime.getTimezoneOffset());
-    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT CAMPUS BREAK</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div><span>Student discount (10%)</span><span>−${money(discount)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div>${state.user.role === 'student' && !Number(state.user.verified) ? '<p class="notice">Your student account is awaiting verification. The discount starts once an administrator approves it.</p>' : ''}<form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${localTime.toISOString().slice(0, 16)}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Pay on collection. Pick up from each vendor shown on your order. For allergies, confirm ingredients with the vendor before ordering.</p><button type="submit">Place order · ${money(subtotal - discount)}</button></form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
+    const currentTime = Date.now();
+    const defaultPickup = localDateTime(currentTime + 20 * 60000);
+    const earliestPickup = localDateTime(currentTime + 5 * 60000);
+    const latestPickup = localDateTime(currentTime + 24 * 60 * 60000);
+    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT CAMPUS BREAK</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div><span>Student discount (10%)</span><span>−${money(discount)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div>${state.user.role === 'student' && !Number(state.user.verified) ? '<p class="notice">Your student account is awaiting verification. The discount starts once an administrator approves it.</p>' : ''}<form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Pay on collection. Pick up from each vendor shown on your order. For allergies, confirm ingredients with the vendor before ordering.</p><button type="submit">Place order · ${money(subtotal - discount)}</button></form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
     if (!$('#basket-dialog').open)
     {
         $('#basket-dialog').showModal();
