@@ -31,10 +31,11 @@ try
     switch ($action)
     {
         case 'bootstrap':
-            respond(['user' => currentUser(), 'csrf' => $_SESSION['csrf'],
+            $sessionUser = currentUser();
+            respond(['user' => $sessionUser, 'csrf' => $_SESSION['csrf'],
                 'sso_enabled' => $config['google_client_id'] !== '' && $config['google_client_secret'] !== '',
                 'vendors' => query('SELECT * FROM vendors ORDER BY id')->fetchAll(),
-                'payment_options' => paymentOptions($config)]);
+                'payment_options' => paymentOptions($config, $sessionUser)]);
         case 'catalog':
             respond(['products' => query('SELECT p.*,v.name AS vendor_name,v.location,v.is_open FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE p.active=1 ORDER BY p.id')->fetchAll()]);
         case 'register':
@@ -144,10 +145,10 @@ try
             }
             $notes = textField($input, 'notes', 500, false);
             $method = (string)($input['payment_method'] ?? '');
-            $available = paymentOptions($config);
+            $available = paymentOptions($config, $user);
             if (!in_array($method, ['demo', 'payfast'], true) || empty($available[$method]))
             {
-                fail('Automatic payment is not available. Configure PayFast for real payments, or enable local demo mode for simulated testing.');
+                fail('Checkout is not enabled for this account. Contact the project administrator.');
             }
             $pdo->beginTransaction();
             // Serialize checkout per customer and lock inventory to prevent overselling.
@@ -198,12 +199,12 @@ try
             // Internal database ID is returned to start payment, but is not a valid collection code.
             respond(['order_id' => $orderId, 'payment_pending' => true], 201);
         case 'payment_demo_complete':
-            // Test-only pathway, not a real payment processor. It is inaccessible remotely.
+            // Non-monetary project checkout; locally restricted or explicitly allowlisted on HTTPS.
             $user = requireUser();
             requirePaymentSchema($pdo);
-            if (!paymentOptions($config)['demo'])
+            if (!paymentOptions($config, $user)['demo'])
             {
-                fail('Local simulated payment is disabled or cannot be used from this address.', 403);
+                fail('Checkout is not enabled for this account.', 403);
             }
             // The customer re-enters CampusEats credentials before payment completion.
             requirePaymentLogin($user, $input);
@@ -215,7 +216,7 @@ try
                 || $order['status'] === 'cancelled')
             {
                 $pdo->rollBack();
-                fail('This order cannot use simulated payment.', 422);
+                fail('This order cannot use this checkout method.', 422);
             }
             if ($payment['state'] === 'paid' && $order['payment_status'] === 'paid')
             {
