@@ -12,7 +12,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-sr
     <title>CampusEats | Good food. Between classes.</title>
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="assets/style.css">
-    <script src="assets/app.js" defer></script>
+    <script src="assets/app.js?v=<?= (int)filemtime(__DIR__ . '/assets/app.js') ?>" defer></script>
 </head>
 <body>
     <aside class="sidebar">
