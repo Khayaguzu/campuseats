@@ -199,6 +199,48 @@ Copy the `payments` configuration section from `server/config.example.php` into 
 **Security and operations:** PayFast must be configured for a public HTTPS domain and a directly verifiable notification source; proxies that mask the originating PayFast IP need a carefully designed trusted-proxy configuration before going live. Test against a dedicated database and Sandbox merchant account. PHP 7.2-7.4 compatibility remains for local development; for any publicly accessible production service, use a supported, security-maintained PHP version.
 
 
+## Coursework checkout on a hosted website (no payment provider required)
+
+CampusEats keeps its existing two-stage checkout, food stock reservations, account
+password re-check, verified-student 10% discount, collection number and shared
+browser/Android database. For a coursework presentation on a public HTTPS server,
+the existing internal `demo` payment method can be enabled **only for explicitly
+listed account IDs**, without a merchant account or card processing.
+
+1. Deploy the latest `Website/server/payments.php` outside `httpdocs`, and
+   `Website/web/api.php` and `Website/web/assets/app.js` inside `httpdocs`.
+   File permissions should allow public CSS/JS reads while keeping `config.php`
+   private. Never upload the private config to GitHub.
+2. In the existing `payments` array of private `server/config.php`, add:
+
+   ```php
+   'school_checkout' => [
+       'enabled' => true,
+       'allowed_user_ids' => [1, 2] // Replace with actual approved account IDs.
+   ],
+   ```
+
+   Use only IDs displayed for your approved users in the hosted phpMyAdmin
+   `users` table. Leave `demo.enabled` and `payfast.enabled` false. Do not
+   add a duplicate top-level `payments` array.
+3. Ensure `base_url` is the actual HTTPS website domain, e.g.
+   `https://khayaguzu.helioho.st/`, and `secure_cookies` remains `true`.
+4. Sign in to the hosted website and to the Android WebView separately. After
+   a fresh login/reload, the approved accounts should see the no-charge checkout
+   option. Choose card or instant EFT (no banking or card details are collected),
+   verify the **CampusEats account password**, and confirm the order.
+   Both clients share the same backend and stored records automatically.
+5. Verify the order under My orders, confirm the collection number, and test
+   the administrator order progression. These orders remain excluded from
+   actual payment revenue calculations.
+
+**Important:** No real funds are charged or received. The user-facing screens
+say so without labeling the application or button as a demo. The collection
+number is a classroom workflow output, **not** proof of a paid purchase from a
+real campus vendor. Unlisted or anonymous accounts cannot invoke this mode.
+For production sales, disable `school_checkout.enabled` and configure/test a
+legitimate payment provider before accepting real customers.
+
 ## Automatic payment, without manual payment approval
 
 New orders accept **PayFast online payment** only when you have configured a merchant account and a publicly reachable HTTPS notification URL. The server activates collection number `CE000123` only after a validated PayFast `COMPLETE` notification, with the correct merchant and order amount. Customers can refresh **My orders** to see the collection number. The administrator cannot manually approve payment; they only prepare and hand over paid food orders. Existing EFT orders remain unpaid until handled separately, and can be cancelled and placed again.
