@@ -39,6 +39,28 @@ checkPayment(paymentOptions($configuration)['demo'] === false, 'Public HTTPS hos
 $configuration['base_url'] = 'http://localhost/campuseats/web';
 $configuration['payments']['demo']['enabled'] = false;
 checkPayment(paymentOptions($configuration)['demo'] === false, 'Simulation is disabled unless explicitly configured');
+
+ // Hosted project checkout is opt-in and restricted to approved user IDs.
+$configuration['base_url'] = 'https://khayaguzu.helioho.st/';
+$_SERVER['HTTP_HOST'] = 'khayaguzu.helioho.st';
+$_SERVER['REMOTE_ADDR'] = '203.0.113.15';
+$configuration['payments']['school_checkout'] = [
+    'enabled' => true,
+    'allowed_user_ids' => [1, 2]
+];
+checkPayment(paymentOptions($configuration)['demo'] === false, 'Anonymous hosted visitors never get checkout access');
+checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === true, 'Approved student may use hosted no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 2])['demo'] === true, 'Approved administrator may use hosted no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Unlisted users cannot complete a hosted no-charge order');
+$configuration['payments']['school_checkout']['enabled'] = false;
+checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === false, 'Hosted checkout can be disabled centrally');
+$configuration['payments']['school_checkout']['enabled'] = true;
+$_SERVER['HTTP_HOST'] = 'different.example.org';
+checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === false, 'Unexpected hosts cannot enable hosted checkout');
+$configuration['base_url'] = 'http://khayaguzu.helioho.st/';
+$_SERVER['HTTP_HOST'] = 'khayaguzu.helioho.st';
+checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === false, 'Hosted school checkout requires an HTTPS base URL');
+
 $account = [
     'email' => 'student@campus.example',
     'password_hash' => password_hash('CorrectPassphrase123!', PASSWORD_DEFAULT)
