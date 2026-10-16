@@ -23,6 +23,39 @@ function localDemoPaymentsAllowed(array $config): bool
         && in_array($serverAddress, $loopback, true);
 }
 
+
+/**
+ * Enable the existing no-charge checkout on an HTTPS coursework installation,
+ * ONLY for the explicitly approved, signed-in user IDs. This is independent
+ * of localhost testing and never enables a real payment provider.
+ *
+ * Keep the allowlist in the private server/config.php (outside httpdocs).
+ */
+function schoolCheckoutAllowed(array $config, ?array $user): bool
+{
+    $settings = $config['payments']['school_checkout'] ?? [];
+    $ids = $settings['allowed_user_ids'] ?? [];
+    $baseUrl = (string)($config['base_url'] ?? '');
+    $configuredHost = strtolower((string)parse_url($baseUrl, PHP_URL_HOST));
+    $requestHost = strtolower(explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0]);
+    if (empty($settings['enabled']) || !$user || !isset($user['id'])
+        || !is_array($ids) || !$ids || strpos($baseUrl, 'https://') !== 0
+        || !$configuredHost || $configuredHost !== $requestHost)
+    {
+        return false;
+    }
+    // Do not permit public account signups to use this checkout by default.
+    foreach ($ids as $allowedId)
+    {
+        if (filter_var($allowedId, FILTER_VALIDATE_INT) !== false
+            && (int)$allowedId === (int)$user['id'])
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
  * Confirm the current CampusEats account's credentials before initiating a
  * payment. Never accept another account's email for the authenticated session.
@@ -58,7 +91,7 @@ function requirePaymentLogin(array $currentUser, array $input): void
 }
 
 /** Only advertise automatic payment methods that are genuinely available. */
-function paymentOptions(array $config): array
+function paymentOptions(array $config, ?array $user = null): array
 {
     $settings = isset($config['payments']) && is_array($config['payments']) ? $config['payments'] : [];
     $gateway = isset($settings['payfast']) && is_array($settings['payfast']) ? $settings['payfast'] : [];
@@ -69,7 +102,7 @@ function paymentOptions(array $config): array
     return [
         'eft' => null, // For compatibility with the previous client response only.
         'payfast' => $online,
-        'demo' => localDemoPaymentsAllowed($config)
+        'demo' => localDemoPaymentsAllowed($config) || schoolCheckoutAllowed($config, $user)
     ];
 }
 
