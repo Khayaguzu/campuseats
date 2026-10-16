@@ -215,11 +215,21 @@ class MainActivity : Activity()
         val website = siteUrl + "index.php"
         val hint = if (BuildConfig.DEBUG)
         {
-            "\n\nCheck WampServer (green icon), then open this exact URL in " +
-                "the emulator browser:\n$website\n\n" +
-                "10.0.2.2 is the emulator's connection to your Windows computer. " +
-                "If the website works in Chrome but not in this app, verify " +
-                "CAMPUS_BASE_URL in Android_App/gradle.properties and rebuild the app."
+            if (baseUri.host == "10.0.2.2" || baseUri.host == "localhost")
+            {
+                "\n\nCheck that WampServer is running, then open this URL in " +
+                    "Chrome inside the Android emulator:\n$website\n\n" +
+                    "10.0.2.2 is the Android emulator address for your Windows computer. " +
+                    "Check CAMPUS_BASE_URL in Android_App/gradle.properties and rebuild."
+            }
+            else
+            {
+                "\n\nOpen this website in Chrome inside the Android emulator:\n$website\n\n" +
+                    "The application requires an internet connection to the hosted HTTPS " +
+                    "website and its same-origin PHP API. If Chrome loads the site but " +
+                    "this app does not, check CAMPUS_BASE_URL in " +
+                    "Android_App/gradle.properties and rebuild the app."
+            }
         }
         else
         {
