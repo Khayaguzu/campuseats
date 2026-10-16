@@ -1,0 +1,32 @@
+# CampusEats repository-wide ignore rules.
+# Track the PHP website, shared REST API, database migrations and Kotlin source.
+# Do not commit generated Android files or machine-specific/private settings.
+
+# Android Studio and Gradle output (also matches nested Android_App/).
+.gradle/
+.idea/
+build/
+local.properties
+*.iml
+
+# Private PHP database, payment-provider and OAuth credentials.
+server/config.php
+.env
+.env.*
+!.env.example
+
+# Release signing credentials and other private keys.
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Local logs, temporary output and operating-system files.
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
+__pycache__/
+*.pyc
