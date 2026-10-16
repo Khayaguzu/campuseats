@@ -16,6 +16,13 @@ return [
         'demo' => [
             'enabled' => false // Change to true ONLY to test locally, NO REAL PAYMENT.
         ],
+        // Coursework order flow on a hosted HTTPS site. ONLY listed accounts
+        // can confirm no-charge orders. Disabled unless explicitly configured.
+        // This does not process cards, EFTs or funds.
+        'school_checkout' => [
+            'enabled' => false,
+            'allowed_user_ids' => [] // e.g. [1, 2] for approved accounts only.
+        ],
         'eft' => [
             'enabled' => false,
             'bank_name' => '',
