@@ -163,7 +163,7 @@ CampusEats uses a relational **MySQL/MariaDB database** with **10 tables**. The 
 
 **Entity-relationship diagram (ERD)** — relationship lines follow the foreign keys in the SQL schema:
 
-\`\`\`mermaid
+```mermaid
 erDiagram
     users ||--o{ orders : places
     users ||--o{ cart : owns
@@ -220,50 +220,50 @@ erDiagram
         bigint id PK
         int admin_id FK
     }
-\`\`\`
+```
 
 **Table-by-table data dictionary** (column names correspond to the SQL files):
 
 | Table | Primary key | Other columns | Foreign keys and purpose |
 | --- | --- | --- | --- |
-| **users** | \`id\` (\`INT UNSIGNED\`) | \`name\`, \`email\`, \`password_hash\`, \`google_sub\`, \`role\`, \`requested_role\`, \`student_number\`, \`verified\`, \`phone\`, \`theme\`, \`order_updates\`, \`created_at\` | Accounts for students, lecturers and admins; \`email\` and non-null \`google_sub\` are unique. Passwords are stored as hashes, not plaintext. |
-| **vendors** | \`id\` (\`INT UNSIGNED\`) | \`name\`, \`location\`, \`is_open\` | Food kitchens, their collection counters and order availability. |
-| **products** | \`id\` (\`INT UNSIGNED\`) | \`vendor_id\`, \`name\`, \`description\`, \`category\`, \`price_cents\`, \`stock\`, \`image\`, \`active\` | \`vendor_id → vendors.id\`. Each food item belongs to a kitchen. |
-| **orders** | \`id\` (\`INT UNSIGNED\`) | \`user_id\`, \`status\`, \`subtotal_cents\`, \`discount_cents\`, \`total_cents\`, \`pickup_at\`, \`notes\`, \`payment_status\`, \`request_key\`, \`created_at\` | \`user_id → users.id\`. One user can have many orders; \`(user_id, request_key)\` is unique to protect against duplicate submissions. |
-| **order_items** | \`id\` (\`INT UNSIGNED\`) | \`order_id\`, \`product_id\`, \`name\`, \`vendor_name\`, \`location\`, \`quantity\`, \`price_cents\` | \`order_id → orders.id\`, \`product_id → products.id\`. Stores each ordered item together with a snapshot of the product name, vendor, location and price. |
-| **cart** | Composite: \`(user_id, product_id)\` | \`quantity\` | \`user_id → users.id\`, \`product_id → products.id\`. A user has at most one cart row per product. |
-| **rate_limits** | \`id\` (\`BIGINT UNSIGNED\`) | \`bucket\`, \`occurred_at\` | Independent security/rate-limiting event records. Indexed on \`(bucket, occurred_at)\`; no foreign key. |
-| **mobile_tickets** | \`ticket_hash\` (\`CHAR(64)\`) | \`user_id\`, \`challenge\`, \`expires_at\` | \`user_id → users.id\`. Short-lived tickets supporting mobile authentication handoff. |
-| **audit_log** | \`id\` (\`BIGINT UNSIGNED\`) | \`admin_id\`, \`action\`, \`target_id\`, \`created_at\` | \`admin_id → users.id\`. Logs actions by administrators; \`target_id\` is an action-specific ID, not an SQL foreign key. |
-| **order_payments** | \`order_id\` (\`INT UNSIGNED\`) | \`method\`, \`state\`, \`bank_reference\`, \`gateway_payment_id\`, \`confirmed_at\`, \`payment_token_hash\`, \`payment_token_expires_at\`, \`created_at\` | \`order_id → orders.id\`. Maximum one payment record per order. \`gateway_payment_id\` is unique when set. |
+| **users** | `id` (`INT UNSIGNED`) | `name`, `email`, `password_hash`, `google_sub`, `role`, `requested_role`, `student_number`, `verified`, `phone`, `theme`, `order_updates`, `created_at` | Accounts for students, lecturers and admins; `email` and non-null `google_sub` are unique. Passwords are stored as hashes, not plaintext. |
+| **vendors** | `id` (`INT UNSIGNED`) | `name`, `location`, `is_open` | Food kitchens, their collection counters and order availability. |
+| **products** | `id` (`INT UNSIGNED`) | `vendor_id`, `name`, `description`, `category`, `price_cents`, `stock`, `image`, `active` | `vendor_id → vendors.id`. Each food item belongs to a kitchen. |
+| **orders** | `id` (`INT UNSIGNED`) | `user_id`, `status`, `subtotal_cents`, `discount_cents`, `total_cents`, `pickup_at`, `notes`, `payment_status`, `request_key`, `created_at` | `user_id → users.id`. One user can have many orders; `(user_id, request_key)` is unique to protect against duplicate submissions. |
+| **order_items** | `id` (`INT UNSIGNED`) | `order_id`, `product_id`, `name`, `vendor_name`, `location`, `quantity`, `price_cents` | `order_id → orders.id`, `product_id → products.id`. Stores each ordered item together with a snapshot of the product name, vendor, location and price. |
+| **cart** | Composite: `(user_id, product_id)` | `quantity` | `user_id → users.id`, `product_id → products.id`. A user has at most one cart row per product. |
+| **rate_limits** | `id` (`BIGINT UNSIGNED`) | `bucket`, `occurred_at` | Independent security/rate-limiting event records. Indexed on `(bucket, occurred_at)`; no foreign key. |
+| **mobile_tickets** | `ticket_hash` (`CHAR(64)`) | `user_id`, `challenge`, `expires_at` | `user_id → users.id`. Short-lived tickets supporting mobile authentication handoff. |
+| **audit_log** | `id` (`BIGINT UNSIGNED`) | `admin_id`, `action`, `target_id`, `created_at` | `admin_id → users.id`. Logs actions by administrators; `target_id` is an action-specific ID, not an SQL foreign key. |
+| **order_payments** | `order_id` (`INT UNSIGNED`) | `method`, `state`, `bank_reference`, `gateway_payment_id`, `confirmed_at`, `payment_token_hash`, `payment_token_expires_at`, `created_at` | `order_id → orders.id`. Maximum one payment record per order. `gateway_payment_id` is unique when set. |
 
 **Important database rules and types:**
 
-- All 10 tables use **InnoDB**. The schema uses \`utf8mb4\` for the database, and \`INT UNSIGNED\` / \`BIGINT UNSIGNED\` for numeric identifiers.
-- Monetary values (\`price_cents\`, \`subtotal_cents\`, \`discount_cents\`, \`total_cents\`) are stored as **integer cents**, not decimal rand. For example, \`4500\` represents **R45.00**. \`stock\` and \`quantity\` are non-negative unsigned integers.
-- \`users.role\` / \`users.requested_role\` allow \`student\`, \`lecturer\`, \`admin\`. \`users.verified\` controls verification; an approved administrator role is distinct from a requested role.
-- \`orders.status\` allows \`placed\`, \`preparing\`, \`ready\`, \`collected\`, \`cancelled\`; \`orders.payment_status\` allows \`unpaid\`, \`paid\`.
-- \`order_payments.method\` allows \`eft\`, \`payfast\`, \`demo\`; \`order_payments.state\` allows \`pending\`, \`paid\`. **A \`paid\` state in the coursework flow represents simulated order confirmation, not money received.**
-- \`created_at\` fields default to the current timestamp. \`orders.pickup_at\` is a \`DATETIME\`; the UI displays local South African collection times.
-- The ERD shows **defined SQL foreign-key relationships**, not every business-level association. The independent \`rate_limits\` table is omitted from the relationship diagram because it has no foreign keys.
+- All 10 tables use **InnoDB**. The schema uses `utf8mb4` for the database, and `INT UNSIGNED` / `BIGINT UNSIGNED` for numeric identifiers.
+- Monetary values (`price_cents`, `subtotal_cents`, `discount_cents`, `total_cents`) are stored as **integer cents**, not decimal rand. For example, `4500` represents **R45.00**. `stock` and `quantity` are non-negative unsigned integers.
+- `users.role` / `users.requested_role` allow `student`, `lecturer`, `admin`. `users.verified` controls verification; an approved administrator role is distinct from a requested role.
+- `orders.status` allows `placed`, `preparing`, `ready`, `collected`, `cancelled`; `orders.payment_status` allows `unpaid`, `paid`.
+- `order_payments.method` allows `eft`, `payfast`, `demo`; `order_payments.state` allows `pending`, `paid`. **A `paid` state in the coursework flow represents simulated order confirmation, not money received.**
+- `created_at` fields default to the current timestamp. `orders.pickup_at` is a `DATETIME`; the UI displays local South African collection times.
+- The ERD shows **defined SQL foreign-key relationships**, not every business-level association. The independent `rate_limits` table is omitted from the relationship diagram because it has no foreign keys.
 
 **How to inspect your database in phpMyAdmin**
 
-1. Open your local \`campuseats\` database in WampServer phpMyAdmin, or the **Plesk-prefixed database** created for HelioHost.
+1. Open your local `campuseats` database in WampServer phpMyAdmin, or the **Plesk-prefixed database** created for HelioHost.
 2. Select **Structure** to see all tables and their columns; use the **Relation view** where available to inspect foreign keys.
 3. In the SQL tab, run read-only queries:
 
-   \`\`\`sql
+   ```sql
    SHOW TABLES;
    SHOW CREATE TABLE users;
    SHOW CREATE TABLE products;
    SHOW CREATE TABLE orders;
    SHOW CREATE TABLE order_payments;
-   \`\`\`
+   ```
 
-4. Compare the result with \`database/schema.sql\`. Do **not** paste private account or password-hash exports into public GitHub issues.
+4. Compare the result with `database/schema.sql`. Do **not** paste private account or password-hash exports into public GitHub issues.
 
-**New installation versus migration:** A fresh database uses \`schema.sql\` followed by \`seed.sql\`. An **existing** database containing users and orders should be **backed up** and, only if needed, updated through \`payment_migration.sql\`. For HelioHost, edit an *import copy* to remove/replace \`CREATE DATABASE campuseats\` and \`USE campuseats\` so the SQL targets the actual Plesk-prefixed database. Never run the initial seed twice or replace the hosted database just to update documentation.
+**New installation versus migration:** A fresh database uses `schema.sql` followed by `seed.sql`. An **existing** database containing users and orders should be **backed up** and, only if needed, updated through `payment_migration.sql`. For HelioHost, edit an *import copy* to remove/replace `CREATE DATABASE campuseats` and `USE campuseats` so the SQL targets the actual Plesk-prefixed database. Never run the initial seed twice or replace the hosted database just to update documentation.
 
 ## 6. Run the website locally with WampServer
 
