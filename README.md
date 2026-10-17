@@ -93,7 +93,7 @@ After signing in as an approved administrator, select **Administration** in the 
 | **Users** | See account types, verify student numbers and approve authorised role requests. |
 | **Vendors** | Update the kitchen name, collection counter/location and whether it is accepting orders. |
 
-To add food, go to **Administration → Products → Add food item**, enter all required details and save. Food pictures are server-managed files under \`web/assets/food/\`; select an existing \`.jpg\` image name. This version does not provide an unrestricted public image-upload endpoint.
+To add food, go to **Administration → Products → Add food item**, enter all required details and save. Food pictures are server-managed files under `web/assets/food/`; select an existing `.jpg` image name. This version does not provide an unrestricted public image-upload endpoint.
 
 To fulfil an order, open **Administration → Orders**, identify the collection number and use the status button in order: **Mark preparing → Mark ready → Confirm collection**. An order cannot skip the required workflow. Do not hand over food solely because a screenshot shows a collection number; verify the record and current status in the administration panel.
 
@@ -101,7 +101,7 @@ Keep administrator accounts private. Verify a requested administrator's authoris
 
 ## 5. System architecture and folder layout
 
-\`\`\`text
+```text
 Browser / Android (Kotlin WebView)
               |
               v
@@ -117,9 +117,9 @@ Browser / Android (Kotlin WebView)
               |
               v
          MySQL / MariaDB
-\`\`\`
+```
 
-\`\`\`text
+```text
 campuseats/
 ├── README.md                          <-- This guide
 ├── .gitignore
@@ -151,9 +151,9 @@ campuseats/
         ├── gradle.properties
         ├── gradlew / gradlew.bat
         └── app/build.gradle.kts
-\`\`\`
+```
 
-**Security boundary:** \`server/config.php\` is private, excluded from Git and never copied to the Android app. Only the **contents of \`Website/web/\`** belong in a public document root; the \`server/\` directory belongs **outside** that public root. PHP and the database run on the server, not on the phone.
+**Security boundary:** `server/config.php` is private, excluded from Git and never copied to the Android app. Only the **contents of `Website/web/`** belong in a public document root; the `server/` directory belongs **outside** that public root. PHP and the database run on the server, not on the phone.
 
 The website uses PHP, HTML, CSS and vanilla JavaScript. The app is written in Kotlin and wraps the shared interface in WebView. It uses Gradle 8.9, Android Gradle Plugin 8.7.3, Kotlin 2.0.21, JDK 17 and Android SDK 35.
 
@@ -165,27 +165,27 @@ The website uses PHP, HTML, CSS and vanilla JavaScript. The app is written in Ko
 
 In Windows PowerShell:
 
-\`\`\`powershell
+```powershell
 cd C:\wamp64\www
 git clone https://github.com/Khayaguzu/campuseats.git
 cd C:\wamp64\www\campuseats
-\`\`\`
+```
 
 Start WampServer and wait until Apache and the database server are running. If you cloned the repo as shown, the website is at:
 
 **http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web/**
 
-This is a *nested repository* URL. The shorter \`http://localhost/campuseats/web/\` only applies if you separately copy the **contents** of \`Website/\` directly into \`C:\wamp64\www\campuseats\`.
+This is a *nested repository* URL. The shorter `http://localhost/campuseats/web/` only applies if you separately copy the **contents** of `Website/` directly into `C:\wamp64\www\campuseats`.
 
 ### Set up the database
 
-- **Fresh local installation:** In phpMyAdmin, select the MySQL/MariaDB instance you intend to use, then import \`Website/database/schema.sql\` and afterwards \`Website/database/seed.sql\`. Do this only once on a fresh database.
-- **Existing installation with data:** **Back it up first**; do not re-import \`schema.sql\` or \`seed.sql\`. Apply \`Website/database/payment_migration.sql\` if the \`order_payments\` table is missing.
+- **Fresh local installation:** In phpMyAdmin, select the MySQL/MariaDB instance you intend to use, then import `Website/database/schema.sql` and afterwards `Website/database/seed.sql`. Do this only once on a fresh database.
+- **Existing installation with data:** **Back it up first**; do not re-import `schema.sql` or `seed.sql`. Apply `Website/database/payment_migration.sql` if the `order_payments` table is missing.
 - The database port may be **3306**, **3307** or **3308**, depending on your WampServer configuration. The PHP connection must use the same server/port as the imported database.
 
-Copy \`Website/server/config.example.php\` to \`Website/server/config.php\` and edit **only your private copy**, for example:
+Copy `Website/server/config.example.php` to `Website/server/config.php` and edit **only your private copy**, for example:
 
-\`\`\`php
+```php
 'db_host' => '127.0.0.1',
 'db_port' => 3308, // Replace with YOUR actual MySQL/MariaDB port.
 'db_name' => 'campuseats',
@@ -193,63 +193,63 @@ Copy \`Website/server/config.example.php\` to \`Website/server/config.php\` and 
 'db_password' => 'YOUR_PRIVATE_PASSWORD',
 'base_url' => 'http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web',
 'secure_cookies' => false,
-\`\`\`
+```
 
 Those lines are settings **inside the returned PHP array**, not a complete replacement for the configuration file.
 
-Create the initial admin **only on a fresh installation** by running the PHP CLI script, substituting your PHP executable if \`php\` is not on \`PATH\`:
+Create the initial admin **only on a fresh installation** by running the PHP CLI script, substituting your PHP executable if `php` is not on `PATH`:
 
-\`\`\`powershell
+```powershell
 cd C:\wamp64\www\campuseats
 php .\CampusEats_Website_Android_App_Separated\Website\server\create-admin.php admin@example.com "Campus Administrator" "ChooseYourOwnStrongPassword"
-\`\`\`
+```
 
-Check the API at your local nested URL followed by \`api.php?action=bootstrap\`. A valid setup returns JSON; then open the website and sign in.
+Check the API at your local nested URL followed by `api.php?action=bootstrap`. A valid setup returns JSON; then open the website and sign in.
 
 ## 7. Run or build the Android app
 
 1. Install **Android Studio**, JDK 17 (or Android Studio's compatible bundled runtime) and the Android SDK.
-2. Select **File → Open** and choose **only** \`C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Android_App\`.
-3. Open \`gradle.properties\`; for the **hosted website**, set:
+2. Select **File → Open** and choose **only** `C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Android_App`.
+3. Open `gradle.properties`; for the **hosted website**, set:
 
-   \`\`\`properties
+   ```properties
    CAMPUS_BASE_URL=https://khayaguzu.helioho.st/
    CAMPUS_SSO_URL=https://khayaguzu.helioho.st/
-   \`\`\`
+   ```
 
 4. Click **Sync Project with Gradle Files**, then select an emulator or connected Android phone.
 5. Press **Run** in Android Studio, or use PowerShell to build a debug APK:
 
-   \`\`\`powershell
+   ```powershell
    cd C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Android_App
    .\gradlew.bat clean :app:assembleDebug
-   \`\`\`
+   ```
 
-6. Find the local output in \`Android_App/app/build/outputs/apk/debug/app-debug.apk\`. Install it on your Android phone only if you trust the source.
+6. Find the local output in `Android_App/app/build/outputs/apk/debug/app-debug.apk`. Install it on your Android phone only if you trust the source.
 
-A **\`BUILD SUCCESSFUL\`** result means Gradle completed. Deprecation warnings are not build failures. The generated \`BuildConfig.java\`, \`.gradle/\`, \`.idea/\`, \`build/\`, \`app/build/\` and \`local.properties\` are local/generated files: **do not edit or commit them**.
+A **`BUILD SUCCESSFUL`** result means Gradle completed. Deprecation warnings are not build failures. The generated `BuildConfig.java`, `.gradle/`, `.idea/`, `build/`, `app/build/` and `local.properties` are local/generated files: **do not edit or commit them**.
 
 ### Local emulator testing
 
 To use WampServer instead of the hosted HTTPS site, temporarily set **both** Gradle URL properties to:
 
-\`\`\`properties
+```properties
 CAMPUS_BASE_URL=http://10.0.2.2/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
 CAMPUS_SSO_URL=http://10.0.2.2/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
-\`\`\`
+```
 
-\`10.0.2.2\` works **inside the Android emulator only**. It reaches the Windows computer; it is not a URL for Windows Chrome or a physical phone. A physical device can use the hosted HTTPS URL, or a correctly configured private LAN address for local development. Release builds require HTTPS. Restore the hosted URLs before producing an APK for sharing.
+`10.0.2.2` works **inside the Android emulator only**. It reaches the Windows computer; it is not a URL for Windows Chrome or a physical phone. A physical device can use the hosted HTTPS URL, or a correctly configured private LAN address for local development. Release builds require HTTPS. Restore the hosted URLs before producing an APK for sharing.
 
 ## 8. Download an APK from GitHub Actions
 
-GitHub Actions automatically compiles the Android **debug APK** when relevant Android files change on \`main\`. You can also trigger the workflow manually:
+GitHub Actions automatically compiles the Android **debug APK** when relevant Android files change on `main`. You can also trigger the workflow manually:
 
 1. Open **[GitHub Actions](https://github.com/Khayaguzu/campuseats/actions)**.
 2. Choose **[Build CampusEats Android APK](https://github.com/Khayaguzu/campuseats/actions/workflows/build-android-apk.yml)**.
 3. Select **Run workflow → main → Run workflow** (if permitted by your GitHub account).
 4. Wait for the **Build debug APK** job to finish successfully.
-5. Open the completed workflow run, scroll to **Artifacts**, and download **\`CampusEats-Android-debug-APK\`**.
-6. Extract the ZIP and install its \`app-debug.apk\` on a test Android device. Installation from outside the Play Store may require device permission.
+5. Open the completed workflow run, scroll to **Artifacts**, and download **`CampusEats-Android-debug-APK`**.
+6. Extract the ZIP and install its `app-debug.apk` on a test Android device. Installation from outside the Play Store may require device permission.
 
 The workflow builds with Java 17 and SDK 35 and checks that the hosted HTTPS address is included. Artifacts are kept for **30 days**. This is a **debug/test APK**, not a Play Store release; production distribution requires a properly signed release and further testing.
 
@@ -259,7 +259,7 @@ The workflow builds with Java 17 and SDK 35 and checks that the hosted HTTPS add
 
 The project was deployed for coursework using HelioHost's Plesk File Manager and MariaDB. On any PHP host, preserve this separation:
 
-\`\`\`text
+```text
 Home directory/
 ├── httpdocs/                  <-- public web files ONLY
 │   ├── index.php
@@ -272,22 +272,22 @@ Home directory/
     ├── bootstrap.php
     ├── payments.php
     └── config.php             <-- PRIVATE, never in Git
-\`\`\`
+```
 
-The PHP files in \`httpdocs\` use relative includes that expect the private \`server\` folder to be its sibling. **Do not upload \`server/config.php\` into \`httpdocs\` or commit it to GitHub.**
+The PHP files in `httpdocs` use relative includes that expect the private `server` folder to be its sibling. **Do not upload `server/config.php` into `httpdocs` or commit it to GitHub.**
 
 ### Hosted setup sequence
 
 1. Create the hosting site and open **Plesk → Files**.
-2. Copy **the contents of \`Website/web/\`** into \`httpdocs/\`. Uploading a ZIP and extracting it there is convenient. Do not leave the files hidden under an extra \`web/\` subfolder unless the website URL is adjusted accordingly.
-3. Create \`server/\` **beside**, not inside, \`httpdocs/\`. Upload \`bootstrap.php\` and \`payments.php\` and prepare a private \`config.php\`.
-4. Create a MariaDB database and a dedicated database user in **Plesk → Databases**. Plesk may prefix names, such as \`YOURPREFIX_campuseats\`; use the actual values in the private PHP config. Database access normally needs **local connections only**.
-5. **For a fresh host database**, select that database in phpMyAdmin. The repository's \`schema.sql\` begins with \`CREATE DATABASE campuseats\` and \`USE campuseats\`: remove/adjust those statements in an import copy when using a Plesk-prefixed database. Likewise remove/adjust \`USE campuseats\` in an import copy of \`seed.sql\`, and import the seed **once**.
-6. **For an existing hosted database**, make a backup and apply only needed migrations. **Do not run the seed again**. The \`payment_migration.sql\` also contains \`USE campuseats\`, so adjust an import copy to target the selected Plesk database.
-7. Set \`base_url\` to the real HTTPS website origin, e.g. \`https://khayaguzu.helioho.st\`, and set \`secure_cookies\` to \`true\`.
-8. Confirm the main page and \`/api.php?action=bootstrap\` load from the live domain.
+2. Copy **the contents of `Website/web/`** into `httpdocs/`. Uploading a ZIP and extracting it there is convenient. Do not leave the files hidden under an extra `web/` subfolder unless the website URL is adjusted accordingly.
+3. Create `server/` **beside**, not inside, `httpdocs/`. Upload `bootstrap.php` and `payments.php` and prepare a private `config.php`.
+4. Create a MariaDB database and a dedicated database user in **Plesk → Databases**. Plesk may prefix names, such as `YOURPREFIX_campuseats`; use the actual values in the private PHP config. Database access normally needs **local connections only**.
+5. **For a fresh host database**, select that database in phpMyAdmin. The repository's `schema.sql` begins with `CREATE DATABASE campuseats` and `USE campuseats`: remove/adjust those statements in an import copy when using a Plesk-prefixed database. Likewise remove/adjust `USE campuseats` in an import copy of `seed.sql`, and import the seed **once**.
+6. **For an existing hosted database**, make a backup and apply only needed migrations. **Do not run the seed again**. The `payment_migration.sql` also contains `USE campuseats`, so adjust an import copy to target the selected Plesk database.
+7. Set `base_url` to the real HTTPS website origin, e.g. `https://khayaguzu.helioho.st`, and set `secure_cookies` to `true`.
+8. Confirm the main page and `/api.php?action=bootstrap` load from the live domain.
 
-**File permissions:** For ordinary public static assets and PHP files use **644** (\`rw-r--r--\`); for public asset directories such as \`assets/\` and \`assets/food/\` use **755** (\`rwxr-xr-x\`). If CSS, JavaScript, the logo or food images show **403 Forbidden**, confirm that the directories are traversable and the files readable, then refresh. Keep the private server area restricted appropriately; do not set credentials to public access or use 777 permissions.
+**File permissions:** For ordinary public static assets and PHP files use **644** (`rw-r--r--`); for public asset directories such as `assets/` and `assets/food/` use **755** (`rwxr-xr-x`). If CSS, JavaScript, the logo or food images show **403 Forbidden**, confirm that the directories are traversable and the files readable, then refresh. Keep the private server area restricted appropriately; do not set credentials to public access or use 777 permissions.
 
 **Do not export real user/password tables to GitHub.** The hosted database and local WampServer database are separate until data is explicitly migrated. Existing local usernames do not magically appear on a new host; import only authorised data through secure channels or register accounts on the host.
 
@@ -297,30 +297,30 @@ The project includes two **distinct** no-charge testing modes:
 
 | Mode | Where | Purpose |
 | --- | --- | --- |
-| \`payments.demo\` | Local loopback only | Developer payment simulation on localhost. Deliberately blocked for remote devices and public hosts. |
-| \`payments.school_checkout\` | Explicitly configured HTTPS host | Coursework order-confirmation flow for signed-in users. Does not move funds. |
-| \`payments.payfast\` | Configured HTTPS callback | Optional genuine provider payment, **disabled unless configured**. |
+| `payments.demo` | Local loopback only | Developer payment simulation on localhost. Deliberately blocked for remote devices and public hosts. |
+| `payments.school_checkout` | Explicitly configured HTTPS host | Coursework order-confirmation flow for signed-in users. Does not move funds. |
+| `payments.payfast` | Configured HTTPS callback | Optional genuine provider payment, **disabled unless configured**. |
 
-**Do not interpret \`school_checkout\` as a real payment gateway.** The UI provides simulated Card/Instant EFT choices for the course demonstration, and stores confirmation/collection status without collecting banking credentials or funds.
+**Do not interpret `school_checkout` as a real payment gateway.** The UI provides simulated Card/Instant EFT choices for the course demonstration, and stores confirmation/collection status without collecting banking credentials or funds.
 
-For a controlled coursework site, add the following **inside the existing \`payments\` section** in the **private** \`server/config.php\`:
+For a controlled coursework site, add the following **inside the existing `payments` section** in the **private** `server/config.php`:
 
-\`\`\`php
+```php
 'school_checkout' => [
     'enabled' => true,
     'allow_registered_users' => true,
     'allowed_user_ids' => []
 ],
-\`\`\`
+```
 
-- With \`allow_registered_users=true\`, any **signed-in account** with a valid user ID (including newly registered students and lecturers) can use the no-charge flow. **Anonymous visitors cannot check out.**
-- With \`allow_registered_users=false\`, only IDs in \`allowed_user_ids\` can check out. If the list is empty, nobody qualifies.
+- With `allow_registered_users=true`, any **signed-in account** with a valid user ID (including newly registered students and lecturers) can use the no-charge flow. **Anonymous visitors cannot check out.**
+- With `allow_registered_users=false`, only IDs in `allowed_user_ids` can check out. If the list is empty, nobody qualifies.
 - Student **verification still determines the 10% discount** and never grants administrator privileges.
-- The configured \`base_url\` must be HTTPS and match the request host. The PHP server must have the current \`server/payments.php\` and \`web/api.php\` source.
+- The configured `base_url` must be HTTPS and match the request host. The PHP server must have the current `server/payments.php` and `web/api.php` source.
 - The customer confirms the order by supplying **the same CampusEats account email and password**, not bank credentials.
-- Set \`school_checkout.enabled=false\` when no longer demonstrating. **Open registration plus no-charge orders on a public site can be abused**; use the restricted allowlist when appropriate.
+- Set `school_checkout.enabled=false` when no longer demonstrating. **Open registration plus no-charge orders on a public site can be abused**; use the restricted allowlist when appropriate.
 
-**Existing database:** Make sure the \`order_payments\` table exists. Back up the database before applying the payment migration, adjusting any database-name statement to match your actual host.
+**Existing database:** Make sure the `order_payments` table exists. Back up the database before applying the payment migration, adjusting any database-name statement to match your actual host.
 
 ### Confirming checkout
 
@@ -328,9 +328,9 @@ Sign in with a **new student or lecturer**, add food to the basket and check whe
 
 ## 11. Optional Google sign-in and genuine payments
 
-**Google single sign-on (optional):** The PHP backend includes \`sso.php\` and an Android browser-return flow. Google sign-in is not available until the site owner creates OAuth credentials, registers the correct callback URI and sets \`google_client_id\` and \`google_client_secret\` **privately**. Email/password login works without Google SSO. Google identity does not automatically grant verified student or administrator privileges. See [the website's SSO setup instructions](CampusEats_Website_Android_App_Separated/Website/README.md#3-configure-google-single-sign-on).
+**Google single sign-on (optional):** The PHP backend includes `sso.php` and an Android browser-return flow. Google sign-in is not available until the site owner creates OAuth credentials, registers the correct callback URI and sets `google_client_id` and `google_client_secret` **privately**. Email/password login works without Google SSO. Google identity does not automatically grant verified student or administrator privileges. See [the website's SSO setup instructions](CampusEats_Website_Android_App_Separated/Website/README.md#3-configure-google-single-sign-on).
 
-**PayFast (optional):** A real merchant flow is implemented separately through \`pay.php\` and \`payfast-itn.php\`, with server-side provider verification. It must be configured and independently sandbox-tested before any real use. No live merchant credentials are provided and **the coursework mode does not charge money**. Manual EFT approval is not part of the current checkout flow. Never request bank passwords or card numbers in CampusEats itself.
+**PayFast (optional):** A real merchant flow is implemented separately through `pay.php` and `payfast-itn.php`, with server-side provider verification. It must be configured and independently sandbox-tested before any real use. No live merchant credentials are provided and **the coursework mode does not charge money**. Manual EFT approval is not part of the current checkout flow. Never request bank passwords or card numbers in CampusEats itself.
 
 ## 12. Testing and troubleshooting
 
@@ -338,34 +338,34 @@ Sign in with a **new student or lecturer**, add food to the basket and check whe
 
 From the **Website** directory in PowerShell:
 
-\`\`\`powershell
+```powershell
 cd C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Website
 python tests\shared_client_contract.py
 php tests\payment_helpers.php
 php -l web\api.php
 php -l server\payments.php
-\`\`\`
+```
 
-The shared-client check verifies source-level website/Android API parity; the payment helper tests check pricing/signatures and restrictions on no-charge checkout. The integration suite (\`tests/integration.py\`) **writes database records**: run it **only on an isolated test database**, never the hosted course database.
+The shared-client check verifies source-level website/Android API parity; the payment helper tests check pricing/signatures and restrictions on no-charge checkout. The integration suite (`tests/integration.py`) **writes database records**: run it **only on an isolated test database**, never the hosted course database.
 
 ### Common problems
 
 | Symptom | Check / solution |
 | --- | --- |
-| Blank/unformatted page or missing photos | Check \`httpdocs/assets/\` and permissions: files **644**, directories **755**. Hard-refresh the page. |
-| API says "Server setup required" or "Service unavailable" | Confirm private \`server/config.php\`, database host/port/name/user, PHP PDO MySQL and server error logs. |
+| Blank/unformatted page or missing photos | Check `httpdocs/assets/` and permissions: files **644**, directories **755**. Hard-refresh the page. |
+| API says "Server setup required" or "Service unavailable" | Confirm private `server/config.php`, database host/port/name/user, PHP PDO MySQL and server error logs. |
 | Login worked locally but not online | Local and hosted databases are different; create/import the correct hosted user record safely. |
 | "Email or password is incorrect" | Use the CampusEats password for that **hosted account**; reset/change it through authorised account settings. |
 | Student discount not applied | The **student number must be verified** by an administrator. Lecturer accounts do not receive the discount. |
-| "Checkout is not enabled for this account" | Verify current \`payments.php\`, the \`school_checkout\` settings, HTTPS host matching and that the user is signed in. |
-| "Payment database setup is incomplete" | Back up the DB and add/upgrade \`order_payments\` using the migration against the **correct** database. |
-| App cannot connect to WampServer | Use \`10.0.2.2\` **inside the emulator**, not on Windows/physical phones; check Apache and the URL in emulator Chrome. |
+| "Checkout is not enabled for this account" | Verify current `payments.php`, the `school_checkout` settings, HTTPS host matching and that the user is signed in. |
+| "Payment database setup is incomplete" | Back up the DB and add/upgrade `order_payments` using the migration against the **correct** database. |
+| App cannot connect to WampServer | Use `10.0.2.2` **inside the emulator**, not on Windows/physical phones; check Apache and the URL in emulator Chrome. |
 | App displays older features | Rebuild/reinstall the Android app if native configuration changed. For hosted webpage changes, refresh WebView/site. |
-| Git lists \`.gradle/\`, \`.idea/\`, \`build/\` or \`local.properties\` | These are local artifacts; keep \`.gitignore\` and do not commit them. |
+| Git lists `.gradle/`, `.idea/`, `build/` or `local.properties` | These are local artifacts; keep `.gitignore` and do not commit them. |
 | Password/CSRF error after sign-in | Refresh to obtain a new session token and sign in again if needed; inspect server logs without posting secrets. |
-| APK build shows warnings | \`BUILD SUCCESSFUL\` is not an error. Investigate only actual \`FAILURE\` or installation/runtime messages. |
+| APK build shows warnings | `BUILD SUCCESSFUL` is not an error. Investigate only actual `FAILURE` or installation/runtime messages. |
 
-**Security reminder:** Never post \`server/config.php\`, database passwords, Google client secrets, PayFast keys, authenticated API JSON containing CSRF tokens, or private customer data in issues, screenshots or commits. If a secret was shared, **rotate it** and update the private host config.
+**Security reminder:** Never post `server/config.php`, database passwords, Google client secrets, PayFast keys, authenticated API JSON containing CSRF tokens, or private customer data in issues, screenshots or commits. If a secret was shared, **rotate it** and update the private host config.
 
 ## 13. Development summary and further documentation
 
@@ -391,7 +391,7 @@ Major changes made during development include:
 - [Android build workflow](.github/workflows/build-android-apk.yml)
 - [PHP checkout test workflow](.github/workflows/test-checkout-php.yml)
 
-**Maintenance:** Keep source changes in Git. Upload only appropriate public PHP/assets and private server code to the correct hosting directories, and keep the private \`config.php\` out of the repository. After source changes, run the appropriate tests, review the hosted site and rebuild the APK if native Android sources or build properties changed.
+**Maintenance:** Keep source changes in Git. Upload only appropriate public PHP/assets and private server code to the correct hosting directories, and keep the private `config.php` out of the repository. After source changes, run the appropriate tests, review the hosted site and rebuild the APK if native Android sources or build properties changed.
 
 ---
 
