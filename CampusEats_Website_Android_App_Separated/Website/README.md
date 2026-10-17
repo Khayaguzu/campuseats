@@ -201,45 +201,40 @@ Copy the `payments` configuration section from `server/config.example.php` into 
 
 ## Coursework checkout on a hosted website (no payment provider required)
 
-CampusEats keeps its existing two-stage checkout, food stock reservations, account
-password re-check, verified-student 10% discount, collection number and shared
-browser/Android database. For a coursework presentation on a public HTTPS server,
-the existing internal `demo` payment method can be enabled **only for explicitly
-listed account IDs**, without a merchant account or card processing.
+CampusEats keeps its existing two-stage checkout, food stock reservations,
+account password re-check, verified-student 10% discount, collection number
+and shared browser/Android database. For a coursework project on the configured
+HTTPS website, the internal `demo` checkout method may be opened to every
+signed-in user. No card or bank details are requested, and no money is moved.
 
-1. Deploy the latest `Website/server/payments.php` outside `httpdocs`, and
-   `Website/web/api.php` and `Website/web/assets/app.js` inside `httpdocs`.
-   File permissions should allow public CSS/JS reads while keeping `config.php`
-   private. Never upload the private config to GitHub.
-2. In the existing `payments` array of private `server/config.php`, add:
+1. Deploy the current `Website/server/payments.php` **outside** `httpdocs`
+   (the site's private `server` folder). Other PHP, JavaScript and Android
+   files are unchanged by the open-registration checkout fix.
+2. In the **existing** `payments` array in private `server/config.php`, set:
 
    ```php
    'school_checkout' => [
        'enabled' => true,
-       'allowed_user_ids' => [1, 2] // Replace with actual approved account IDs.
+       'allow_registered_users' => true,
+       'allowed_user_ids' => [1, 2] // Only used if allow_registered_users is false.
    ],
    ```
 
-   Use only IDs displayed for your approved users in the hosted phpMyAdmin
-   `users` table. Leave `demo.enabled` and `payfast.enabled` false. Do not
-   add a duplicate top-level `payments` array.
-3. Ensure `base_url` is the actual HTTPS website domain, e.g.
-   `https://khayaguzu.helioho.st/`, and `secure_cookies` remains `true`.
-4. Sign in to the hosted website and to the Android WebView separately. After
-   a fresh login/reload, the approved accounts should see the no-charge checkout
-   option. Choose card or instant EFT (no banking or card details are collected),
-   verify the **CampusEats account password**, and confirm the order.
-   Both clients share the same backend and stored records automatically.
-5. Verify the order under My orders, confirm the collection number, and test
-   the administrator order progression. These orders remain excluded from
-   actual payment revenue calculations.
+   Never publish `config.php`. Do not create a duplicate `payments` array.
+   Leave `demo.enabled` and `payfast.enabled` set to false.
+3. Ensure `base_url` matches the HTTPS hosting domain and `secure_cookies`
+   is true. Checkout stays unavailable to anonymous visitors. Students and
+   lecturers may order right after registration; the student discount still
+   requires verification and new admin roles still require approval.
+4. Sign in to the hosted website or Android app, refresh the page/app and place
+   a no-charge order. The user must re-enter the CampusEats account password
+   before receiving a collection number. Confirm orders in My orders and in
+   the administrator dashboard.
 
-**Important:** No real funds are charged or received. The user-facing screens
-say so without labeling the application or button as a demo. The collection
-number is a classroom workflow output, **not** proof of a paid purchase from a
-real campus vendor. Unlisted or anonymous accounts cannot invoke this mode.
-For production sales, disable `school_checkout.enabled` and configure/test a
-legitimate payment provider before accepting real customers.
+If `allow_registered_users` is false, only accounts in
+`allowed_user_ids` may check out (legacy restricted mode). For a real food
+business or actual payments, **disable school_checkout** and integrate a
+validated real payment provider first. A no-charge order is not proof of payment.
 
 ## Automatic payment, without manual payment approval
 
