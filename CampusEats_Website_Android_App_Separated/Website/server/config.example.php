@@ -16,12 +16,14 @@ return [
         'demo' => [
             'enabled' => false // Change to true ONLY to test locally, NO REAL PAYMENT.
         ],
-        // Coursework order flow on a hosted HTTPS site. ONLY listed accounts
-        // can confirm no-charge orders. Disabled unless explicitly configured.
-        // This does not process cards, EFTs or funds.
+        // Coursework order flow on the configured HTTPS site. No real funds.
+        // Off by default. Enable allow_registered_users only for a no-charge
+        // school project where every signed-in customer may place an order.
+        // Keep it disabled for a real-money shop.
         'school_checkout' => [
             'enabled' => false,
-            'allowed_user_ids' => [] // e.g. [1, 2] for approved accounts only.
+            'allow_registered_users' => false,
+            'allowed_user_ids' => [] // Used when allow_registered_users is false.
         ],
         'eft' => [
             'enabled' => false,
