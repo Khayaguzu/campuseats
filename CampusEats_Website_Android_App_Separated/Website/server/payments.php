@@ -25,26 +25,41 @@ function localDemoPaymentsAllowed(array $config): bool
 
 
 /**
- * Enable the existing no-charge checkout on an HTTPS coursework installation,
- * ONLY for the explicitly approved, signed-in user IDs. This is independent
- * of localhost testing and never enables a real payment provider.
+ * No-charge school-project checkout on the configured HTTPS website.
+ * Requires a signed-in CampusEats account; never processes actual funds.
  *
- * Keep the allowlist in the private server/config.php (outside httpdocs).
+ * Account access is explicitly configured in the private server/config.php:
+ * either allow all registered users, or use the legacy list of approved IDs.
+ * Localhost test payments remain restricted by localDemoPaymentsAllowed().
  */
 function schoolCheckoutAllowed(array $config, ?array $user): bool
 {
     $settings = $config['payments']['school_checkout'] ?? [];
-    $ids = $settings['allowed_user_ids'] ?? [];
     $baseUrl = (string)($config['base_url'] ?? '');
     $configuredHost = strtolower((string)parse_url($baseUrl, PHP_URL_HOST));
     $requestHost = strtolower(explode(':', (string)($_SERVER['HTTP_HOST'] ?? ''))[0]);
     if (empty($settings['enabled']) || !$user || !isset($user['id'])
-        || !is_array($ids) || !$ids || strpos($baseUrl, 'https://') !== 0
+        || filter_var($user['id'], FILTER_VALIDATE_INT) === false
+        || (int)$user['id'] < 1 || strpos($baseUrl, 'https://') !== 0
         || !$configuredHost || $configuredHost !== $requestHost)
     {
         return false;
     }
-    // Do not permit public account signups to use this checkout by default.
+
+    // For the coursework installation, students and lecturers can place
+    // no-charge orders immediately after registering. Verification still
+    // controls student discounts; this does not grant administrator rights.
+    if (!empty($settings['allow_registered_users']))
+    {
+        return true;
+    }
+
+    // Backwards-compatible restricted mode if the open-registration flag is off.
+    $ids = $settings['allowed_user_ids'] ?? [];
+    if (!is_array($ids))
+    {
+        return false;
+    }
     foreach ($ids as $allowedId)
     {
         if (filter_var($allowedId, FILTER_VALIDATE_INT) !== false
