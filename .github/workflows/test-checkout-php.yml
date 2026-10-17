@@ -1,0 +1,42 @@
+name: Test CampusEats Checkout PHP
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/test-checkout-php.yml'
+      - 'CampusEats_Website_Android_App_Separated/Website/server/payments.php'
+      - 'CampusEats_Website_Android_App_Separated/Website/tests/payment_helpers.php'
+      - 'CampusEats_Website_Android_App_Separated/Website/web/api.php'
+  pull_request:
+    paths:
+      - 'CampusEats_Website_Android_App_Separated/Website/server/payments.php'
+      - 'CampusEats_Website_Android_App_Separated/Website/tests/payment_helpers.php'
+      - 'CampusEats_Website_Android_App_Separated/Website/web/api.php'
+
+permissions:
+  contents: read
+
+jobs:
+  test-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: CampusEats_Website_Android_App_Separated/Website
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Lint PHP files
+        run: |
+          php -l server/payments.php
+          php -l web/api.php
+          php -l tests/payment_helpers.php
+      - name: Check hosted checkout permissions and payment helpers
+        run: php tests/payment_helpers.php
