@@ -1,5 +1,8 @@
 # CampusEats
 
+> **Current hosted coursework deployment (October 2026):** The authoritative end-to-end guide is the [repository README](../../README.md). The deployed website is [https://khayaguzu.helioho.st/](https://khayaguzu.helioho.st/), with public `web/` files in Plesk `httpdocs/`, a private sibling `server/` directory and MariaDB. The newer **opt-in** `payments.school_checkout` mode allows no-charge, account-confirmed coursework orders on the configured HTTPS host; with `allow_registered_users=true`, newly registered students and lecturers can use it. Verification still controls the student 10% discount. This mode charges **no real money** and must not be confused with PayFast or the separate localhost-only `payments.demo` setting. All hosted credentials remain in private `server/config.php` and never belong in GitHub. Older local-only payment descriptions below refer to the legacy development mode.
+
+
 A PHP/MySQL campus food ordering website and an Android Studio Kotlin application, adapted from the supplied Rosebank HTML prototype.
 
 ## What is included
