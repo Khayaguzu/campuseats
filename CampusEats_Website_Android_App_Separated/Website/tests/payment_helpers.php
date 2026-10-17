@@ -51,7 +51,16 @@ $configuration['payments']['school_checkout'] = [
 checkPayment(paymentOptions($configuration)['demo'] === false, 'Anonymous hosted visitors never get checkout access');
 checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === true, 'Approved student may use hosted no-charge checkout');
 checkPayment(paymentOptions($configuration, ['id' => 2])['demo'] === true, 'Approved administrator may use hosted no-charge checkout');
-checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Unlisted users cannot complete a hosted no-charge order');
+checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Unlisted users cannot complete a hosted no-charge order when open registration is disabled');
+$configuration['payments']['school_checkout']['allow_registered_users'] = true;
+checkPayment(paymentOptions($configuration)['demo'] === false, 'Anonymous visitors cannot complete hosted checkout with open registration');
+checkPayment(paymentOptions($configuration, ['id' => 3, 'role' => 'student', 'verified' => 0])['demo'] === true, 'New unverified students can use no-charge checkout without the student discount');
+checkPayment(paymentOptions($configuration, ['id' => 4, 'role' => 'lecturer', 'verified' => 0])['demo'] === true, 'New lecturers can use no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 555, 'role' => 'student'])['demo'] === true, 'Newly created user IDs need no further allowlist updates');
+checkPayment(paymentOptions($configuration, ['id' => 0])['demo'] === false, 'Invalid user IDs cannot use no-charge checkout');
+$configuration['payments']['school_checkout']['allow_registered_users'] = false;
+checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Turning off open registration restores the account allowlist');
+$configuration['payments']['school_checkout']['allow_registered_users'] = true;
 $configuration['payments']['school_checkout']['enabled'] = false;
 checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === false, 'Hosted checkout can be disabled centrally');
 $configuration['payments']['school_checkout']['enabled'] = true;
