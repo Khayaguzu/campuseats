@@ -8,6 +8,8 @@ New orders use the same listed prices for everyone, with no student discount. Hi
 
 ## Deploy this update
 
+For step-by-step instructions specific to the existing HelioHost site, see [HELIOHOST-DEPLOYMENT.md](HELIOHOST-DEPLOYMENT.md). The website cannot be considered live until the private hosted database and files have been updated.
+
 1. Back up the current database and private server/config.php.
 2. Put the site in maintenance mode while updating the schema and PHP files together.
 3. Select the existing CampusEats database in phpMyAdmin and run database/general_customers_migration.sql. This converts existing student/lecturer accounts to customer and preserves administrator accounts. Pending administrator requests do not grant access. It preserves user IDs, passwords, Google links, orders, baskets and historical prices. The script can safely be rerun.
