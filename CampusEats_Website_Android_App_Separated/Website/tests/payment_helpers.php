@@ -74,7 +74,7 @@ $account = [
     'email' => 'customer@food.example',
     'password_hash' => password_hash('CorrectPassphrase123!', PASSWORD_DEFAULT)
 ];
-checkPayment(paymentLoginMatches($account, 'STUDENT@campus.example', 'CorrectPassphrase123!'), 'Reauthentication accepts current account credentials');
+checkPayment(paymentLoginMatches($account, 'CUSTOMER@food.example', 'CorrectPassphrase123!'), 'Reauthentication accepts current account credentials');
 checkPayment(!paymentLoginMatches($account, 'someone@campus.example', 'CorrectPassphrase123!'), 'Reauthentication rejects another account');
 checkPayment(!paymentLoginMatches($account, 'customer@food.example', 'WrongPassphrase123!'), 'Reauthentication rejects invalid password');
 checkPayment(!paymentLoginMatches(['email' => 'sso@campus.example', 'password_hash' => null], 'sso@campus.example', 'Anything123!'), 'Account without password cannot bypass checkout verification');
