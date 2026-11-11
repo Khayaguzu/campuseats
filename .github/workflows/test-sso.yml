@@ -38,8 +38,15 @@ jobs:
         run: |
           mysql -h127.0.0.1 -uroot -ptestpassword < database/schema.sql
           mysql -h127.0.0.1 -uroot -ptestpassword campuseats < database/seed.sql
-          php -r '$c = require "server/config.example.php"; $c["db_password"] = "testpassword"; $c["base_url"] = "http://127.0.0.1:8088"; $c["google_client_id"] = "test-client"; $c["google_client_secret"] = "test-secret"; file_put_contents("server/config.php", "<?php return " . var_export($c, true) . ";");'
+          php -r '$c = require "server/config.example.php"; $c["db_password"] = "testpassword"; $c["base_url"] = "https://127.0.0.1:8088"; $c["payments"]["school_checkout"]["enabled"] = true; $c["payments"]["school_checkout"]["allow_registered_users"] = true; $c["google_client_id"] = "test-client"; $c["google_client_secret"] = "test-secret"; file_put_contents("server/config.php", "<?php return " . var_export($c, true) . ";");'
           php -S 127.0.0.1:8088 -t web > /tmp/campus-sso-server.log 2>&1 &
           for attempt in $(seq 1 20); do curl -fsS http://127.0.0.1:8088/api.php > /dev/null && break || sleep 1; done
+      - name: Verify existing account migration
+        run: php tests/customer_migration.php
+      - name: Exercise general customer orders
+        run: |
+          php server/create-admin.php admin@test.local 'Test Administrator' 'TestingAdminPassword123!'
+          python3 tests/integration.py http://127.0.0.1:8088 admin@test.local 'TestingAdminPassword123!'
+          python3 tests/shared_client_contract.py
       - name: Exercise real session and ticket endpoints
         run: CAMPUS_SSO_TEST=1 python3 tests/sso_integration.py

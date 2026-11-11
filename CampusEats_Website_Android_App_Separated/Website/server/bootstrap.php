@@ -110,7 +110,7 @@ function currentUser(): ?array
     {
         return null;
     }
-    $user = query('SELECT id,name,email,role,requested_role,student_number,verified,phone,theme,order_updates,(google_sub IS NOT NULL) AS google_linked FROM users WHERE id = ?', [$_SESSION['user_id']])->fetch();
+    $user = query('SELECT id,name,email,role,phone,theme,order_updates,(google_sub IS NOT NULL) AS google_linked FROM users WHERE id = ?', [$_SESSION['user_id']])->fetch();
     return $user ?: null;
 }
 

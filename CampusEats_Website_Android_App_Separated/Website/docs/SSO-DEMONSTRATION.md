@@ -25,7 +25,7 @@ A completed implementation does not guarantee a mark. The assessor must see succ
 
 4. In the private server/config.php set base_url to `https://khayaguzu.helioho.st`, secure_cookies to true, and fill google_client_id and google_client_secret with the real client values. Keep the secret out of GitHub, screenshots, Android code and chat. Enable PHP cURL and PDO MySQL. The server needs outbound HTTPS access to Google.
 5. Both Android_App/gradle.properties values, CAMPUS_BASE_URL and CAMPUS_SSO_URL, must be `https://khayaguzu.helioho.st/`. Rebuild and install the new APK. The APK already stored in the source repository predates this update.
-6. Deploy updated server and web files, including the new server/session.php. The existing users.google_sub and mobile_tickets schema already supports this update; no destructive database import is required.
+6. Deploy updated server and web files, including the new server/session.php. The existing users.google_sub and mobile_tickets schema already supports this update; run database/general_customers_migration.sql before deploying the general customer update. Never reimport schema.sql into the existing database.
 7. Existing sessions created before this update will require sign-in again. The default idle timeout is 30 minutes and the absolute lifetime is eight hours. The idle timer measures server requests, including background activity.
 
 Both platforms use the PHP web OAuth client. Do not put a Google client secret in the Android app or register campuseats://auth as Google's redirect URI. That URI is only the PHP server's handoff back to the app.
@@ -34,7 +34,7 @@ Reference: https://developers.google.com/identity/protocols/oauth2/web-server
 
 ## Existing password accounts
 
-Account linking deliberately requires proof of ownership. Open the CampusEats website in the system browser, log in with the existing CampusEats password, open My account, and select **Link Google identity** using the same email. Then use **Continue with Google** on either platform. An existing linked Google identity cannot be silently replaced. For a Google account without an existing CampusEats account, the first sign-in creates a normal account without administrator privileges or verified-student status.
+Account linking deliberately requires proof of ownership. Open the CampusEats website in the system browser, log in with the existing CampusEats password, open My account, and select **Link Google identity** using the same email. Then use **Continue with Google** on either platform. An existing linked Google identity cannot be silently replaced. For a Google account without an existing CampusEats account, the first sign-in creates a normal account with the customer role and without administrator privileges.
 
 The Android WebView and browser have separate cookies. Logging into the WebView with a password does not also log the system browser into that account. Complete initial linking in the browser as described above.
 

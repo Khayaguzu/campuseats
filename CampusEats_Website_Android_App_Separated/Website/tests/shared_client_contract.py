@@ -32,19 +32,15 @@ client_actions = set(re.findall(r"\bapi\(['\"]([a-z_]+)['\"]", frontend))
 required = {
     'bootstrap', 'catalog', 'register', 'login', 'logout', 'cart', 'cart_set',
     'checkout', 'orders', 'settings', 'password', 'payment_demo_complete',
-    'payment_start', 'order_status', 'admin', 'product_save', 'user_approve',
-    'vendor_save', 'role_request', 'cancel'
+    'payment_start', 'order_status', 'admin', 'product_save',
+    'vendor_save', 'cancel'
 }
 missing = (client_actions | required) - backend_actions
 assert not missing, 'Missing API actions: ' + ', '.join(sorted(missing))
 
-# The configured Android URL must target PHP's public web directory. The
-# emulator sees the host machine as 10.0.2.2, not as localhost.
+# The hosted app and sign-in flow must share the same HTTPS backend.
 properties = dict(re.findall(r'^(CAMPUS_[A-Z_]+)=(.+)$', gradle_properties, re.MULTILINE))
-assert properties['CAMPUS_BASE_URL'].startswith('http://10.0.2.2/')
-assert properties['CAMPUS_BASE_URL'].endswith('/Website/web/')
+assert properties['CAMPUS_BASE_URL'].startswith('https://')
 assert properties['CAMPUS_SSO_URL'] == properties['CAMPUS_BASE_URL']
-
-print(f'PASS: Android and website share the same WebView UI and PHP REST API')
-print(f'PASS: {len(client_actions)} directly named website API calls resolve to server actions')
-print('PASS: No separate Android database; emulator URLs share one PHP backend')
+assert 'role_request' not in backend_actions and 'user_approve' not in backend_actions
+print('PASS: website and Android share the customer UI and matching hosted API')

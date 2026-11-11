@@ -1,6 +1,6 @@
 # CampusEats Android app, same website and REST API
 
-> **Current course-project setup:** Use the HTTPS hosted URL in both Android `gradle.properties` settings, rebuild and sign in to the same server-backed account. The separately configured HTTPS **`school_checkout`** mode can confirm **no-charge coursework orders** for newly registered students and lecturers when explicitly enabled in the private server configuration. It is not a financial transaction. Only the older local `payments.demo` mode is loopback-restricted. For role rules, hosted installation, detailed customer instructions and GitHub Actions APK download, read the [main README](../../README.md).
+> **Current course-project setup:** Use the HTTPS hosted URL in both Android `gradle.properties` settings, rebuild and sign in to the same server-backed account. The separately configured HTTPS **`school_checkout`** mode can confirm **no-charge coursework orders** for newly registered customers when explicitly enabled in the private server configuration. It is not a financial transaction. Only the older local `payments.demo` mode is loopback-restricted. For role rules, hosted installation, detailed customer instructions and GitHub Actions APK download, read the [main README](../../README.md).
 
 
 **Open this `Android_App` directory directly in Android Studio**, using **File > Open**. Do not open `campuseats` or `CampusEats_Website_Android_App_Separated` as the Android Gradle project root. This Kotlin application is a secure WebView container for the existing responsive CampusEats website, **not a separately implemented Android shopping interface**. Both website and app use the exact same JavaScript and `Website/web/api.php` endpoint, and the PHP server uses one MySQL database.
@@ -21,7 +21,7 @@ The shared production website and REST API are hosted at **https://khayaguzu.hel
 
 ## REST API and database parity
 
-Both website and Android app render `Website/web/index.php` and load `Website/web/assets/app.js`. The browser's requests use `fetch('api.php?action=...')` on that server. Authentication cookies, student/lecturer/admin roles, discounts, basket, account settings, food catalogue, order number and payment confirmation all run on the PHP backend. The server is authoritative and uses MySQL via PDO. The Android application never reads MySQL directly or stores a separate copy of account data.
+Both website and Android app render `Website/web/index.php` and load `Website/web/assets/app.js`. The browser's requests use `fetch('api.php?action=...')` on that server. Authentication cookies, customer/admin roles, menu prices, basket, account settings, food catalogue, order number and payment confirmation all run on the PHP backend. The server is authoritative and uses MySQL via PDO. The Android application never reads MySQL directly or stores a separate copy of account data.
 
 The account and basket are shared between clients when the same account signs in to both. Browser and WebView maintain **separate login cookies**, so logging in on the website does not automatically sign the user into the app. Saved account settings and orders appear in both once authenticated. This behavior is normal and protects session isolation.
 
