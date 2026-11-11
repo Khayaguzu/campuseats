@@ -138,7 +138,7 @@ try
             $available = paymentOptions($config, $user);
             if (!in_array($method, ['demo', 'payfast'], true) || empty($available[$method]))
             {
-                fail('Checkout is not enabled for this account. Contact the project administrator.');
+                fail('Checkout is not enabled for this account. Contact the store administrator.');
             }
             $pdo->beginTransaction();
             // Serialize checkout per customer and lock inventory to prevent overselling.
