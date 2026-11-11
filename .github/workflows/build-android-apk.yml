@@ -1,6 +1,10 @@
 name: Build CampusEats Android APK
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/build-android-apk.yml'
+      - 'CampusEats_Website_Android_App_Separated/Android_App/**'
   workflow_dispatch:
   push:
     branches:

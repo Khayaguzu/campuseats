@@ -256,6 +256,15 @@ class MainActivity : Activity()
 
     private fun beginSingleSignOn()
     {
+        // The browser callback and WebView redemption must use the same server.
+        // This also prevents sending a handoff proof over unencrypted HTTP.
+        if (baseUri.scheme != "https" || siteUrl != ssoUrl)
+        {
+            AlertDialog.Builder(this)
+                .setMessage("Google sign-in requires the same HTTPS website for the app and sign-in settings.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         val verifier = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
@@ -282,16 +291,21 @@ class MainActivity : Activity()
     private fun handleAuthIntent(intent: Intent?): Boolean
     {
         val uri = intent?.data ?: return false
-        if (uri.scheme != "campuseats" || uri.host != "auth") return false
+        if (uri.scheme != "campuseats" || uri.host != "auth" ||
+            !uri.path.isNullOrEmpty() || uri.port != -1) return false
         val ticket = uri.getQueryParameter("ticket") ?: return false
         val verifier = preferences.getString("verifier", null) ?: return false
         val started = preferences.getLong("started", 0)
-        if (!ticket.matches(Regex("[a-f0-9]{64}")) || System.currentTimeMillis() - started > 600000)
+        if (baseUri.scheme != "https" || siteUrl != ssoUrl ||
+            !ticket.matches(Regex("[a-f0-9]{64}")) || started <= 0 ||
+            System.currentTimeMillis() - started !in 0..600000)
         {
             preferences.edit().clear().apply()
             return false
         }
         preferences.edit().clear().apply()
+        // Do not replay a consumed deep link after an Activity recreation.
+        intent?.data = null
         val body = "ticket=" + URLEncoder.encode(ticket, "UTF-8") +
             "&verifier=" + URLEncoder.encode(verifier, "UTF-8")
         errorPanel.visibility = View.GONE

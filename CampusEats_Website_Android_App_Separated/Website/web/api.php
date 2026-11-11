@@ -59,8 +59,7 @@ try
             }
             query('INSERT INTO users(name,email,password_hash,role,requested_role,student_number) VALUES (?,?,?,?,?,?)',
                 [$name, $email, password_hash($password, PASSWORD_DEFAULT), $role === 'admin' ? 'lecturer' : $role, $role, $number]);
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = (int)$pdo->lastInsertId();
+            establishSession((int)$pdo->lastInsertId(), 'password');
             respond(['user' => currentUser()], 201);
         case 'login':
             rateLimit('login');
@@ -70,8 +69,7 @@ try
             {
                 fail('The email or password is incorrect.', 401);
             }
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = $user['id'];
+            establishSession((int)$user['id'], 'password');
             respond(['user' => currentUser()]);
         case 'logout':
             $_SESSION = [];
