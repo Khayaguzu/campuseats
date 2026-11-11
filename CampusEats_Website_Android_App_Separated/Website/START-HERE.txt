@@ -1,32 +1,46 @@
-CAMPUSEATS: SEPARATED WEBSITE AND KOTLIN ANDROID PROJECT
+CAMPUSEATS: GENERAL FOOD ORDERING WEBSITE AND ANDROID APPLICATION
 
-1. Keep the current Git checkout in C:\wamp64\www\campuseats.
-   In this layout, the website is inside CampusEats_Website_Android_App_Separated\Website.
-   Keep your current working server\config.php and MySQL port 3308.
-2. Start Apache and MySQL in WampServer.
-3. On an EXISTING database, do not reimport schema.sql or seed.sql; export a backup first.
-4. Keep your existing private Website/server/config.php and add the payments block if needed.
-5. From C:\wamp64\www\campuseats, run the PHP CLI administrator setup:
-   php server\create-admin.php admin@example.com "Campus Administrator" "YourStrongPassword123!"
-6. Open http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web/ in a browser.
-7. Open Android_App in Android Studio. The emulator uses 10.0.2.2 to access WampServer.
-8. To use a real phone, update Android_App/gradle.properties for the computer's LAN IP and full /Website/web/ path, enable Apache private-network access, and rebuild the APK.
-9. For Google SSO, follow Website/README.md and configure both Google credentials and the OAuth callback.
+The website and Android app share the same PHP REST API and MySQL/MariaDB
+database. Public registrations are CUSTOMER accounts. Store administrator
+accounts are provisioned separately.
 
-Existing features, roles, menus, stock management, orders and student discounts are preserved.
-For detailed steps and troubleshooting, read Website/README.md.
+EXISTING INSTALLATION
 
-AUTOMATIC PAYMENT UPDATE FOR EXISTING DATABASES
+1. Back up the current database and private Website/server/config.php.
+2. Keep the existing PHP hosting paths and database connection details.
+   Local Windows installs commonly use C:\wamp64\www\campuseats.
+3. Do not reimport database/schema.sql or database/seed.sql into an existing
+   database. Follow Website/docs/GENERAL-CUSTOMERS.md instead.
+4. In phpMyAdmin, choose the existing database and run
+   Website/database/general_customers_migration.sql.
+5. If the order_payments table is missing, review
+   Website/database/payment_migration.sql and apply it only as needed.
+6. Deploy the updated Website/web and Website/server files together. Preserve
+   the existing private config.php and remove the old college-logo.png
+   from the hosting file manager.
+7. In a local WampServer checkout, start Apache and MySQL and visit
+   http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
+   when using the repository's complete nested folder structure.
+8. In Android Studio open Android_App directly, not the repository root.
+   The Android app loads the same hosted interface and database-backed API.
+9. Verify account creation, login, basket, orders and administrator permissions.
+   For real phone testing, configure both Android URLs to the working HTTPS
+   website and rebuild the APK.
 
-- Back up the existing campuseats database in phpMyAdmin before modifying it.
-- Run Website/database/payment_migration.sql against campuseats on MySQL port 3308.
-- Keep the existing server/config.php and credentials; copy in only the payments settings.
-- New orders do NOT offer manual EFT payment or administrator payment approval.
-- For real payments, configure PayFast merchant credentials and a public HTTPS callback.
-- For LOCAL DEVELOPMENT ONLY, set payments.demo.enabled to true to simulate payment.
-  No real funds change hands and the demo is restricted to the local machine.
-- Once the payment provider confirms payment (or simulated test is completed),
-  the collection number appears under My orders. Unpaid orders cannot be collected.
-- Role approval remains only for verified student discounts or administrator accounts,
-  and is not required for ordinary student or lecturer purchases.
-- See Website/README.md for payment configuration and full security notes.
+PUBLIC HOSTING
+
+Live site: https://khayaguzu.helioho.st/
+Full deployment and recovery instructions:
+  Website/docs/HELIOHOST-DEPLOYMENT.md
+
+GOOGLE SIGN-IN AND PAYMENTS
+
+Google authentication requires private OAuth credentials and a verified HTTPS
+callback. Follow Website/docs/SSO-DEMONSTRATION.md before demonstrating login
+on both platforms. Never commit credentials to GitHub.
+
+A configured demonstration checkout charges no money. Real payments require
+PayFast configuration and independent end-to-end verification. Do not treat
+a demonstration confirmation as evidence of money received.
+
+For installation, API and testing details, read Website/README.md.
