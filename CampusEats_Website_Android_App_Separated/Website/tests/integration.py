@@ -95,13 +95,13 @@ status, data = requester.call('register', {'name': 'Admin Requester', 'email': s
 check(status == 201 and data['user']['role'] != 'admin', 'Public registration cannot grant administrator privileges')
 check(requester.call('cancel', {'id': order_id})[0] == 404, 'A different account cannot cancel another user order')
 other_customer = Client()
-status, data = other_customer.call('register', {'name': 'Other customer', 'email': suffix+'@other_customer.test', 'password': 'TestingPassword123!', 'role': 'other_customer'})
+status, data = other_customer.call('register', {'name': 'Other customer', 'email': suffix+'@another.test', 'password': 'TestingPassword123!', 'role': 'lecturer'})
 check(status == 201 and data['user']['role'] == 'customer', 'Submitted legacy roles cannot change the customer role')
 other_customer.call('cart_set', {'product_id': 2, 'quantity': 1})
 other_customer_order_id = checkout(other_customer)
 check(other_customer.call('orders')[1]['orders'][0]['discount_cents'] == 0, 'Other customers pay the regular selling price')
 check(admin.call('order_status', {'id': other_customer_order_id, 'status': 'preparing'})[0] == 422, 'Unpaid other_customer orders cannot be prepared')
-check(other_customer.call('payment_demo_complete', {'id': other_customer_order_id, 'email': suffix+'@other_customer.test', 'password': 'TestingPassword123!'})[0] == 200, 'Other customer can complete simulated checkout without any administrator approval')
+check(other_customer.call('payment_demo_complete', {'id': other_customer_order_id, 'email': suffix+'@another.test', 'password': 'TestingPassword123!'})[0] == 200, 'Other customer can complete simulated checkout without any administrator approval')
 check(other_customer.call('payment_start', {'id': other_customer_order_id})[0] == 422, 'Simulated test orders cannot start PayFast payments')
 product = admin.call('admin')[1]['products'][0]
 product['stock'] = 0

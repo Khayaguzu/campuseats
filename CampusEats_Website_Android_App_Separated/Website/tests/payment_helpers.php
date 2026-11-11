@@ -49,14 +49,14 @@ $configuration['payments']['school_checkout'] = [
     'allowed_user_ids' => [1, 2]
 ];
 checkPayment(paymentOptions($configuration)['demo'] === false, 'Anonymous hosted visitors never get checkout access');
-checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === true, 'Approved student may use hosted no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === true, 'Allowlisted customer may use hosted no-charge checkout');
 checkPayment(paymentOptions($configuration, ['id' => 2])['demo'] === true, 'Approved administrator may use hosted no-charge checkout');
 checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Unlisted users cannot complete a hosted no-charge order when open registration is disabled');
 $configuration['payments']['school_checkout']['allow_registered_users'] = true;
 checkPayment(paymentOptions($configuration)['demo'] === false, 'Anonymous visitors cannot complete hosted checkout with open registration');
-checkPayment(paymentOptions($configuration, ['id' => 3, 'role' => 'student', 'verified' => 0])['demo'] === true, 'New unverified students can use no-charge checkout without the student discount');
-checkPayment(paymentOptions($configuration, ['id' => 4, 'role' => 'lecturer', 'verified' => 0])['demo'] === true, 'New lecturers can use no-charge checkout');
-checkPayment(paymentOptions($configuration, ['id' => 555, 'role' => 'student'])['demo'] === true, 'Newly created user IDs need no further allowlist updates');
+checkPayment(paymentOptions($configuration, ['id' => 3, 'role' => 'customer'])['demo'] === true, 'New customers can use explicitly enabled no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 4, 'role' => 'customer'])['demo'] === true, 'Other customers can use explicitly enabled no-charge checkout');
+checkPayment(paymentOptions($configuration, ['id' => 555, 'role' => 'customer'])['demo'] === true, 'Newly created user IDs need no further allowlist updates');
 checkPayment(paymentOptions($configuration, ['id' => 0])['demo'] === false, 'Invalid user IDs cannot use no-charge checkout');
 $configuration['payments']['school_checkout']['allow_registered_users'] = false;
 checkPayment(paymentOptions($configuration, ['id' => 3])['demo'] === false, 'Turning off open registration restores the account allowlist');
@@ -71,11 +71,11 @@ $_SERVER['HTTP_HOST'] = 'khayaguzu.helioho.st';
 checkPayment(paymentOptions($configuration, ['id' => 1])['demo'] === false, 'Hosted school checkout requires an HTTPS base URL');
 
 $account = [
-    'email' => 'student@campus.example',
+    'email' => 'customer@food.example',
     'password_hash' => password_hash('CorrectPassphrase123!', PASSWORD_DEFAULT)
 ];
 checkPayment(paymentLoginMatches($account, 'STUDENT@campus.example', 'CorrectPassphrase123!'), 'Reauthentication accepts current account credentials');
 checkPayment(!paymentLoginMatches($account, 'someone@campus.example', 'CorrectPassphrase123!'), 'Reauthentication rejects another account');
-checkPayment(!paymentLoginMatches($account, 'student@campus.example', 'WrongPassphrase123!'), 'Reauthentication rejects invalid password');
+checkPayment(!paymentLoginMatches($account, 'customer@food.example', 'WrongPassphrase123!'), 'Reauthentication rejects invalid password');
 checkPayment(!paymentLoginMatches(['email' => 'sso@campus.example', 'password_hash' => null], 'sso@campus.example', 'Anything123!'), 'Account without password cannot bypass checkout verification');
 echo "Payment helper tests passed.\n";
