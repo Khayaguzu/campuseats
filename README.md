@@ -1,506 +1,453 @@
-# CampusEats | Campus food ordering website and Android app
+<p align="center">
+  <img src="docs/images/campuseats-logo.png" alt="CampusEats official green and orange food-ordering logo" width="290" />
+</p>
 
-**CampusEats** is a coursework project for browsing campus food, placing collection orders and managing kitchen operations. It consists of a responsive **PHP website**, a **Kotlin Android application**, a **shared PHP REST API** and a **MySQL/MariaDB database**.
+<h1 align="center">CampusEats</h1>
+<p align="center"><strong>Good food. For everyone.</strong><br />One food-ordering experience for the web and Android.</p>
+<p align="center">
+  <a href="https://khayaguzu.helioho.st/">Live Website</a> •
+  <a href="https://github.com/Khayaguzu/campuseats/actions">GitHub Actions</a> •
+  <a href="RELEASE_NOTES.md">Release Notes</a> •
+  <a href="#screenshots">Screenshots</a>
+</p>
 
-**Hosted website:** https://khayaguzu.helioho.st/  
-**Source:** https://github.com/Khayaguzu/campuseats  
-**Platform:** Browser (desktop/mobile) and Android 8.0+ (API 26+)  
-**Intended use:** Education, demonstration and development. Catalogue, vendors, photographs and transactions are illustrative.
+> **Version information, 12 November 2026:** This README documents the **current, deployed CampusEats experience (Android v1.1.0)**. Its corresponding updated source is on the [\`codex/google-sso-web-android\` branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). The repository's default \`main\` source still includes some **older prototype files** until those changes are merged. Do not use an old APK or old database schema as evidence of the updated release.
 
-> **Important:** The Android app uses a WebView to display the **same** responsive website. It does not connect directly to MySQL or implement a second ordering system. The website and Android app share server-side accounts, food, stock, baskets, orders and settings. Each client signs in separately because its session cookies are separate.
+> **Payment safety:** CampusEats currently demonstrates **no-charge practice checkout**. The card and Instant EFT fields use fictitious sample values. **No actual funds are collected or transferred.** Real PayFast processing is disabled until configured and independently tested. Google sign-in is also unavailable until OAuth credentials are configured.
 
 ## Contents
 
-1. [Features and user roles](#1-features-and-user-roles)
-2. [Getting started as a customer](#2-getting-started-as-a-customer)
-3. [Ordering and checkout](#3-ordering-and-checkout)
-4. [Administrator guide](#4-administrator-guide)
-5. [System architecture and folder layout](#5-system-architecture-and-folder-layout) ([database structure](#database-structure-and-relationships))
-6. [Run the website locally with WampServer](#6-run-the-website-locally-with-wampserver)
-7. [Run or build the Android app](#7-run-or-build-the-android-app)
-8. [Download an APK from GitHub Actions](#8-download-an-apk-from-github-actions)
-9. [Deploy the website to HelioHost/Plesk](#9-deploy-the-website-to-heliohostplesk)
-10. [Configure coursework checkout](#10-configure-coursework-checkout)
-11. [Optional Google sign-in and genuine payments](#11-optional-google-sign-in-and-genuine-payments)
-12. [Testing and troubleshooting](#12-testing-and-troubleshooting)
-13. [Development summary and further documentation](#13-development-summary-and-further-documentation)
+1. [Purpose and problem statement](#1-purpose-and-problem-statement)
+2. [Target users and functional scope](#2-target-users-and-functional-scope)
+3. [Screenshots](#3-screenshots)
+4. [System design and architecture](#4-system-design-and-architecture)
+5. [Design considerations](#5-design-considerations)
+6. [Technology stack and project structure](#6-technology-stack-and-project-structure)
+7. [How to use CampusEats](#7-how-to-use-campuseats)
+8. [Local development and Android build](#8-local-development-and-android-build)
+9. [GitHub and version-control workflow](#9-github-and-version-control-workflow)
+10. [GitHub Actions and automated testing](#10-github-actions-and-automated-testing)
+11. [Deployment, configuration and data safety](#11-deployment-configuration-and-data-safety)
+12. [Innovations and improvements since the prototype](#12-innovations-and-improvements-since-the-prototype)
+13. [Testing evidence, limitations and next steps](#13-testing-evidence-limitations-and-next-steps)
+14. [Documentation and release notes](#14-documentation-and-release-notes)
 
-## 1. Features and user roles
+## 1. Purpose and problem statement
 
-| Feature | Student | Lecturer | Administrator |
-| --- | --- | --- | --- |
-| Browse food, search and filter by category/vendor | Yes | Yes | Yes |
-| Register, sign in and manage personal information | Yes | Yes | Yes |
-| Save a basket and place collection orders | Yes | Yes | Yes |
-| Track order status and collection number | Yes | Yes | Yes |
-| Change password, appearance and notification preferences | Yes | Yes | Yes |
-| Receive a **10% student discount** | **After student-number verification** | No | No |
-| Manage food items, quantities, prices and vendors | No | No | Yes |
-| Verify student numbers and approve administrator requests | No | No | Yes |
-| Mark orders as preparing, ready and collected | No | No | Yes |
+### What is CampusEats?
 
-**Catalogue:** Four sample kitchens are included: **The Grill Spot**, **Pizza Piazza**, **Fresh & Green** and **Coffee Corner**, with **32 sample products**. Products have descriptions, illustrative photos, quantities, prices in South African rand and collection locations.
+**CampusEats** is an integrated food-ordering website and Android application. Customers can explore meals from different kitchens, review product descriptions and prices, place collection orders, and view progress using a unique collection number. Authorised administrators maintain menu items, vendors, stock and order preparation.
 
-Administrator access is controlled on the server. Selecting **Administrator** during registration **requests approval**; it does not immediately grant administrator privileges. A verified student receives the student discount; an unverified student can still order, but without the discount. Lecturers do not require student verification for ordinary ordering.
+### Problem being addressed
 
-### Main pages
+A customer visiting several food counters may need to search for available items manually, check prices at each counter and wait while an order is prepared. Manual ordering can also make it difficult for the customer to know when to collect an item and for a kitchen to keep an organised record of orders. CampusEats provides one digital ordering interface that consolidates the catalogue, account information, basket, order details and collection status.
 
-- **Explore menu:** View products, filter by category or kitchen, search, and add food.
-- **My orders:** View order history, amounts, collection numbers and progress: **Placed → Preparing → Ready → Collected**.
-- **My account:** Update name, contact details, theme, order-update preference and password; view or request a campus role.
-- **Administration:** Manage orders, products, user verification and vendors. Only available to approved administrators.
-- **Basket/checkout:** Change item quantities, see the applicable student discount, choose collection time, enter order notes and confirm an order.
+### Purpose of each platform
 
-## 2. Getting started as a customer
+| Platform | Purpose | Value to the user |
+| --- | --- | --- |
+| **Responsive website** | Accessible from a desktop, tablet or mobile browser without installing software | Convenient menu exploration and online collection ordering |
+| **Android application** | Provides a phone application using a Kotlin WebView that securely opens the same hosted interface | Consistent ordering on a personal Android device |
+| **Shared PHP API and MariaDB** | Enforce login permissions, calculate prices and store menus, customer profiles and orders centrally | Consistency between the two interfaces and one authoritative data source |
+| **Administrator dashboard** | Manage products, kitchens, stock, account information and order progression | Improved operational visibility and control |
 
-1. Open **https://khayaguzu.helioho.st/** in a browser or launch the installed CampusEats Android app.
-2. Select **Sign in → Create an account** if new. Provide a name, email, password and account type (**Student** or **Lecturer**). Students also provide a student number.
-3. If already registered, select **Sign in** and use your CampusEats email/password.
-4. Open **Explore menu**, choose food items and select the **+** button to add them.
-5. Open **Basket** to check quantities and totals.
-6. To change details later, go to **My account** and select **Save changes**.
+### Objectives and expected impact
 
-**Student verification:** An administrator checks the student number and approves verification under **Administration → Users**. Until then, the 10% discount is not applied.
+- Make the menu easier to discover through search, categories, kitchen filters, prices, images and stock labels.
+- Allow customers to order ahead, choose a collection time and obtain a trackable order reference.
+- Provide the same account and order records through the website and Android app.
+- Protect administrator-only actions through server-side authorisation.
+- Demonstrate the complete ordering workflow without soliciting or collecting real payment details.
+- Reduce the complexity of maintaining two separate frontends by reusing the same hosted interface.
 
-**Lecturers:** Choose **Lecturer** during registration. The ordering process is the same as for students, but no student discount is applied.
+These are **project objectives and intended benefits**, not measured claims about reduced waiting times or commercial sales.
 
-**Administrator:** The first administrator is created through the CLI setup script on a new local installation. Later administrator registrations must be approved by an existing authorised administrator.
+## 2. Target users and functional scope
 
-## 3. Ordering and checkout
+There are **two active account roles** in the updated application.
 
-1. Sign in and add food to the basket. Products display prices and available quantities.
-2. Review the basket. A verified student receives **10% off**; other users pay the full displayed amount.
-3. Choose a collection time and optionally enter notes about the order. Confirm any allergies directly with the vendor.
-4. Select **Continue to checkout** if the configured checkout method is available.
-5. For the **coursework/no-charge** checkout, choose **Card** or **Instant EFT** as an on-screen option; **do not enter real card or bank credentials**. Re-enter your **CampusEats email and password** to confirm the account.
-6. After the server confirms the order, note the **collection number**, which is also available under **My orders**.
-7. Follow its status in the website or Android app. An administrator marks an order **Preparing**, then **Ready**, then **Collected**.
+| Capability | Customer | Administrator |
+| --- | :---: | :---: |
+| Create an account using name, email and password | ✅ | Separately provisioned |
+| Browse products and search/filter by category or kitchen | ✅ | ✅ |
+| Manage own profile, theme and notification preference | ✅ | ✅ |
+| Add food to basket and select collection time | ✅ | ✅ |
+| Complete no-charge practice checkout and receive collection number | ✅ | ✅ |
+| View own orders and their current progress | ✅ | ✅ |
+| Manage vendors, product descriptions, prices and stock | ❌ | ✅ |
+| Advance or cancel applicable orders | ❌ | ✅ |
+| Access administration and account-management controls | ❌ | ✅ |
 
-**Example:** A verified student orders a R45 burger and R50 cheeseburger. Subtotal **R95.00** − student discount **R9.50** = **R85.50**. The server calculates the final totals rather than trusting browser-submitted prices.
+**The updated public registration has no Student or Lecturer selection, institution-number requirement or new-order student discount.** Legacy database fields may remain solely for historical compatibility. Historical order totals are preserved during migration.
 
-**No-charge checkout is a school-project simulation.** No money or real payment is processed by this mode; a simulated confirmation is not proof of payment. The display may use a payment-style flow for demonstrating account verification, order confirmation and collection numbers. It must not be used to solicit money. Real PayFast payment is a separate, optional integration that requires properly configured merchant credentials and independent validation.
+The sample catalogue includes multiple kitchens, food categories, descriptions, illustrative photographs, prices in South African rand and collection locations.
 
-**Account and order state:** Website and Android sessions are independent, but records are centrally stored. Sign in with the same account on each device and refresh **My orders** to see server-side changes.
+## 3. Screenshots
 
-## 4. Administrator guide
+The photographs below are **actual captures of the CampusEats website and Android application**, supplied during the project testing on 12 November 2026. They are documentation evidence, not generated UI mockups. Screens show sample catalogue items and no-charge transactions.
 
-After signing in as an approved administrator, select **Administration** in the navigation. Four tabs are available:
+### Website interface
 
-| Tab | What the administrator can do |
-| --- | --- |
-| **Orders** | Review orders and collection details; progress valid paid/confirmed orders from placed through preparing, ready and collected. |
-| **Products** | Add or edit food names, descriptions/allergens, kitchens, categories, selling prices, stock, images and menu visibility. |
-| **Users** | See account types, verify student numbers and approve authorised role requests. |
-| **Vendors** | Update the kitchen name, collection counter/location and whether it is accepting orders. |
+**Figure 1. Website homepage, branding, category navigation and food catalogue.**
 
-To add food, go to **Administration → Products → Add food item**, enter all required details and save. Food pictures are server-managed files under `web/assets/food/`; select an existing `.jpg` image name. This version does not provide an unrestricted public image-upload endpoint.
+![CampusEats live website homepage with logo, welcome banner, kitchen filters and food cards](docs/images/website-home.jpg)
 
-To fulfil an order, open **Administration → Orders**, identify the collection number and use the status button in order: **Mark preparing → Mark ready → Confirm collection**. An order cannot skip the required workflow. Do not hand over food solely because a screenshot shows a collection number; verify the record and current status in the administration panel.
+**Figure 2. General customer registration.** A new customer enters a full name, email and password, without choosing an academic account type.
 
-Keep administrator accounts private. Verify a requested administrator's authorisation before approving. Verify student numbers against appropriate campus records before applying discounts.
+![CampusEats website registration modal with general customer details](docs/images/website-registration.jpg)
 
-## 5. System architecture and folder layout
+**Figure 3. Vendor management, visible only to an authorised administrator.**
 
-```text
-Browser / Android (Kotlin WebView)
-              |
-              v
-    PHP website (web/index.php)
-     JavaScript (web/assets/app.js)
-              |
-     Same-origin JSON requests
-              v
-       PHP API (web/api.php)
-              |
-   Server-side auth, orders, stock
-   server/bootstrap.php + payments.php
-              |
-              v
-         MySQL / MariaDB
-```
+![CampusEats administrator vendor settings with kitchen names, collection points and order availability](docs/images/website-admin-vendors.jpg)
 
-```text
-campuseats/
-├── README.md                          <-- This guide
-├── .gitignore
-├── .github/workflows/
-│   ├── build-android-apk.yml
-│   └── test-checkout-php.yml
-└── CampusEats_Website_Android_App_Separated/
-    ├── Website/
-    │   ├── web/
-    │   │   ├── index.php
-    │   │   ├── api.php
-    │   │   ├── sso.php
-    │   │   ├── pay.php
-    │   │   ├── payfast-itn.php
-    │   │   └── assets/ (app.js, style.css, logo, food photos)
-    │   ├── server/
-    │   │   ├── bootstrap.php
-    │   │   ├── payments.php
-    │   │   ├── config.example.php
-    │   │   └── create-admin.php
-    │   ├── database/
-    │   │   ├── schema.sql
-    │   │   ├── seed.sql
-    │   │   └── payment_migration.sql
-    │   ├── tests/
-    │   └── docs/
-    └── Android_App/
-        ├── app/src/main/java/za/ac/campuseats/MainActivity.kt
-        ├── gradle.properties
-        ├── gradlew / gradlew.bat
-        └── app/build.gradle.kts
-```
+### Android application
 
-**Security boundary:** `server/config.php` is private, excluded from Git and never copied to the Android app. Only the **contents of `Website/web/`** belong in a public document root; the `server/` directory belongs **outside** that public root. PHP and the database run on the server, not on the phone.
+The application loads the same hosted catalogue through a Kotlin WebView, with responsive bottom navigation on a phone.
 
-The website uses PHP, HTML, CSS and vanilla JavaScript. The app is written in Kotlin and wraps the shared interface in WebView. It uses Gradle 8.9, Android Gradle Plugin 8.7.3, Kotlin 2.0.21, JDK 17 and Android SDK 35.
+<table>
+  <tr>
+    <td align="center"><strong>Figure 4. Android home</strong></td>
+    <td align="center"><strong>Figure 5. Android basket</strong></td>
+    <td align="center"><strong>Figure 6. Order confirmation</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/android-home.jpg" alt="CampusEats Android home and mobile menu" width="235" /></td>
+    <td align="center"><img src="docs/images/android-basket.jpg" alt="CampusEats basket with quantity, collection time and no-charge checkout" width="235" /></td>
+    <td align="center"><img src="docs/images/android-order-confirmation.jpg" alt="CampusEats Android confirmation displaying no-charge order reference CE000019" width="235" /></td>
+  </tr>
+</table>
 
-### Database structure and relationships
+Screenshots are reduced in resolution for repository readability and deliberately exclude passwords and real payment credentials.
 
-CampusEats uses a relational **MySQL/MariaDB database** with **10 tables**. The definitive table definitions are maintained in [database/schema.sql](CampusEats_Website_Android_App_Separated/Website/database/schema.sql); [database/payment_migration.sql](CampusEats_Website_Android_App_Separated/Website/database/payment_migration.sql) creates or updates the payment table for existing installations. The tables below describe the **repository's schema**; a separately maintained hosted database should be checked for any later migrations.
+## 4. System design and architecture
 
-**Entity-relationship diagram (ERD)** — relationship lines follow the foreign keys in the SQL schema:
+### Architecture
 
-```mermaid
+\`\`\`mermaid
+flowchart TD
+    C["Desktop / mobile browser"] --> W["Hosted responsive PHP / HTML / CSS / JavaScript UI"]
+    A["Android Kotlin WebView"] --> W
+    W --> API["Same-origin PHP JSON API"]
+    API --> AUTH["Session validation and Customer / Administrator permissions"]
+    API --> ORD["Products, baskets, orders and checkout rules"]
+    AUTH --> DB[("Hosted MySQL / MariaDB")]
+    ORD --> DB
+    API --> UI["Order status, collection number and account data"]
+    UI --> W
+\`\`\`
+
+**Key design decision:** The Android application is **not** a second independent ordering implementation. It loads the shared HTTPS web interface, which calls the same-origin PHP API. The database and PHP application remain on the server. This reduces duplicated logic and helps ensure that a price or role rule is enforced once.
+
+### Data flow for a collection order
+
+1. The customer signs in to a Customer account on the browser or within the Android app.
+2. The frontend requests catalogue data from the hosted \`api.php\` endpoint.
+3. Products are added to a basket, and quantities are displayed with server-backed prices.
+4. The customer chooses a collection time and enters optional notes.
+5. The practice checkout shows Card or Instant EFT **sample options** and requires account confirmation.
+6. The PHP backend validates the account and order, creates the order record and generates a collection reference.
+7. The customer views the reference under **My orders**; the Administrator updates order progress as the kitchen prepares it.
+
+### Database model
+
+The project uses an SQL schema with records for \`users\`, \`vendors\`, \`products\`, \`cart\`, \`orders\`, \`order_items\`, \`order_payments\`, \`mobile_tickets\`, \`audit_log\` and \`rate_limits\`. The relationship is based on account and product identifiers, and order lines preserve a snapshot of product information.
+
+\`\`\`mermaid
 erDiagram
     users ||--o{ orders : places
     users ||--o{ cart : owns
-    products ||--o{ cart : added_to
     vendors ||--o{ products : supplies
+    products ||--o{ cart : selected
     orders ||--o{ order_items : contains
     products ||--o{ order_items : references
-    orders ||--o| order_payments : has
-    users ||--o{ mobile_tickets : authenticates
-    users ||--o{ audit_log : performs
+    orders ||--o| order_payments : checkout
+    users ||--o{ mobile_tickets : handoff
+    users ||--o{ audit_log : administered_by
+\`\`\`
 
-    users {
-        int id PK
-        varchar email UK
-        enum role
-        boolean verified
-    }
-    vendors {
-        int id PK
-        varchar name
-    }
-    products {
-        int id PK
-        int vendor_id FK
-        int price_cents
-        int stock
-    }
-    orders {
-        int id PK
-        int user_id FK
-        enum status
-        int total_cents
-    }
-    order_items {
-        int id PK
-        int order_id FK
-        int product_id FK
-    }
-    cart {
-        int user_id PK,FK
-        int product_id PK,FK
-        int quantity
-    }
-    order_payments {
-        int order_id PK,FK
-        enum method
-        enum state
-    }
-    mobile_tickets {
-        char ticket_hash PK
-        int user_id FK
-    }
-    audit_log {
-        bigint id PK
-        int admin_id FK
-    }
-```
+Money is stored as **integer cents**, so R45.00 is represented by 4500. The updated migration changes academic account roles to Customer while keeping existing accounts, orders and historical amounts. The source schema and migration are linked in [Section 11](#11-deployment-configuration-and-data-safety).
 
-**Table-by-table data dictionary** (column names correspond to the SQL files):
+## 5. Design considerations
 
-| Table | Primary key | Other columns | Foreign keys and purpose |
-| --- | --- | --- | --- |
-| **users** | `id` (`INT UNSIGNED`) | `name`, `email`, `password_hash`, `google_sub`, `role`, `requested_role`, `student_number`, `verified`, `phone`, `theme`, `order_updates`, `created_at` | Accounts for students, lecturers and admins; `email` and non-null `google_sub` are unique. Passwords are stored as hashes, not plaintext. |
-| **vendors** | `id` (`INT UNSIGNED`) | `name`, `location`, `is_open` | Food kitchens, their collection counters and order availability. |
-| **products** | `id` (`INT UNSIGNED`) | `vendor_id`, `name`, `description`, `category`, `price_cents`, `stock`, `image`, `active` | `vendor_id → vendors.id`. Each food item belongs to a kitchen. |
-| **orders** | `id` (`INT UNSIGNED`) | `user_id`, `status`, `subtotal_cents`, `discount_cents`, `total_cents`, `pickup_at`, `notes`, `payment_status`, `request_key`, `created_at` | `user_id → users.id`. One user can have many orders; `(user_id, request_key)` is unique to protect against duplicate submissions. |
-| **order_items** | `id` (`INT UNSIGNED`) | `order_id`, `product_id`, `name`, `vendor_name`, `location`, `quantity`, `price_cents` | `order_id → orders.id`, `product_id → products.id`. Stores each ordered item together with a snapshot of the product name, vendor, location and price. |
-| **cart** | Composite: `(user_id, product_id)` | `quantity` | `user_id → users.id`, `product_id → products.id`. A user has at most one cart row per product. |
-| **rate_limits** | `id` (`BIGINT UNSIGNED`) | `bucket`, `occurred_at` | Independent security/rate-limiting event records. Indexed on `(bucket, occurred_at)`; no foreign key. |
-| **mobile_tickets** | `ticket_hash` (`CHAR(64)`) | `user_id`, `challenge`, `expires_at` | `user_id → users.id`. Short-lived tickets supporting mobile authentication handoff. |
-| **audit_log** | `id` (`BIGINT UNSIGNED`) | `admin_id`, `action`, `target_id`, `created_at` | `admin_id → users.id`. Logs actions by administrators; `target_id` is an action-specific ID, not an SQL foreign key. |
-| **order_payments** | `order_id` (`INT UNSIGNED`) | `method`, `state`, `bank_reference`, `gateway_payment_id`, `confirmed_at`, `payment_token_hash`, `payment_token_expires_at`, `created_at` | `order_id → orders.id`. Maximum one payment record per order. `gateway_payment_id` is unique when set. |
+| Consideration | Decision and justification |
+| --- | --- |
+| **Usability** | Use clear labels and a straightforward ordering journey: menu → basket → checkout → collection number → order tracking. |
+| **Visual consistency** | Use the same green, orange and white CampusEats identity across website and Android rather than different branding on each platform. |
+| **Responsive design** | Desktop screens use a sidebar; narrow screens use a bottom navigation bar, adaptive cards, fluid dialogs and appropriately sized inputs. |
+| **Accessibility** | Semantic navigation, labels, understandable buttons, focus indications and readable contrast are part of the UI design. Further accessibility auditing is still valuable. |
+| **Maintainability** | Share the HTML/CSS/JavaScript frontend instead of implementing duplicate price calculations and ordering workflows in Kotlin. |
+| **Security** | Use HTTPS on the hosted system, hashed passwords, PHP sessions, role checks and private server configuration outside the public web root. A hidden menu item is not a substitute for server-side authorisation. |
+| **Data integrity** | Store product prices in cents, validate quantity/stock on the server, preserve order history and avoid destructive migration over an existing database. |
+| **Payment integrity** | Clearly identify no-charge practice checkout, use fictitious data and require validated payment-provider callbacks before any future real-money claims. |
+| **Reliability** | Include error and retry behaviour, isolated tests and repeatable builds. Android connectivity requires a reachable HTTPS host. |
+| **Privacy** | Do not commit database passwords, OAuth client secrets, customer exports or real card data to a public repository. |
+| **Scalability** | Centralised API and database simplify consistency, but production scale would require performance, capacity, security and operational testing. |
 
-**Important database rules and types:**
+## 6. Technology stack and project structure
 
-- All 10 tables use **InnoDB**. The schema uses `utf8mb4` for the database, and `INT UNSIGNED` / `BIGINT UNSIGNED` for numeric identifiers.
-- Monetary values (`price_cents`, `subtotal_cents`, `discount_cents`, `total_cents`) are stored as **integer cents**, not decimal rand. For example, `4500` represents **R45.00**. `stock` and `quantity` are non-negative unsigned integers.
-- `users.role` / `users.requested_role` allow `student`, `lecturer`, `admin`. `users.verified` controls verification; an approved administrator role is distinct from a requested role.
-- `orders.status` allows `placed`, `preparing`, `ready`, `collected`, `cancelled`; `orders.payment_status` allows `unpaid`, `paid`.
-- `order_payments.method` allows `eft`, `payfast`, `demo`; `order_payments.state` allows `pending`, `paid`. **A `paid` state in the coursework flow represents simulated order confirmation, not money received.**
-- `created_at` fields default to the current timestamp. `orders.pickup_at` is a `DATETIME`; the UI displays local South African collection times.
-- The ERD shows **defined SQL foreign-key relationships**, not every business-level association. The independent `rate_limits` table is omitted from the relationship diagram because it has no foreign keys.
+| Layer | Technology |
+| --- | --- |
+| Frontend | HTML5, CSS3, vanilla JavaScript |
+| Website/backend | PHP and a JSON REST-style API |
+| Database | MySQL / MariaDB with PDO |
+| Android | Kotlin, Android WebView, AndroidX |
+| Build | Gradle wrapper, Java 17, Android SDK 35 |
+| Hosting | HelioHost Plesk and HTTPS |
+| Version control | Git and GitHub |
+| CI | GitHub Actions for APK compilation, PHP checkout and SSO/integration checks |
 
-**How to inspect your database in phpMyAdmin**
+\`\`\`text
+campuseats/
+├── README.md
+├── RELEASE_NOTES.md
+├── docs/
+│   └── images/                        # Actual screenshots and CampusEats logo
+├── .github/workflows/
+│   ├── build-android-apk.yml          # Debug APK build
+│   ├── test-checkout-php.yml          # Checkout PHP tests
+│   └── test-sso.yml                   # PHP, JS, database and session integration
+└── CampusEats_Website_Android_App_Separated/
+    ├── Website/
+    │   ├── web/                       # Public PHP interface, API and assets
+    │   ├── server/                    # Private PHP logic and configuration template
+    │   ├── database/                  # Schema and migrations
+    │   ├── tests/                     # Automated tests
+    │   └── docs/                      # Deployment, API and SSO details
+    └── Android_App/
+        ├── app/src/main/              # Kotlin Android application
+        ├── gradle.properties          # Hosted URL for WebView
+        └── gradlew / gradlew.bat
+\`\`\`
 
-1. Open your local `campuseats` database in WampServer phpMyAdmin, or the **Plesk-prefixed database** created for HelioHost.
-2. Select **Structure** to see all tables and their columns; use the **Relation view** where available to inspect foreign keys.
-3. In the SQL tab, run read-only queries:
+The active implementation is in the [general-customer source branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). Version 1.1.0 is configured in its \`Android_App/app/build.gradle.kts\`. The older default branch may not yet contain all those source changes.
 
-   ```sql
-   SHOW TABLES;
-   SHOW CREATE TABLE users;
-   SHOW CREATE TABLE products;
-   SHOW CREATE TABLE orders;
-   SHOW CREATE TABLE order_payments;
-   ```
+## 7. How to use CampusEats
 
-4. Compare the result with `database/schema.sql`. Do **not** paste private account or password-hash exports into public GitHub issues.
+### Customer
 
-**New installation versus migration:** A fresh database uses `schema.sql` followed by `seed.sql`. An **existing** database containing users and orders should be **backed up** and, only if needed, updated through `payment_migration.sql`. For HelioHost, edit an *import copy* to remove/replace `CREATE DATABASE campuseats` and `USE campuseats` so the SQL targets the actual Plesk-prefixed database. Never run the initial seed twice or replace the hosted database just to update documentation.
+1. Open [the website](https://khayaguzu.helioho.st/) or install the Android test APK.
+2. Choose **Sign in**, or **Create an account** with a full name, email and password.
+3. Open **Explore menu**; search, filter and select food.
+4. Open **Basket**, verify quantities and choose a collection time.
+5. Continue to the clearly labelled no-charge checkout. Select a sample Card or Instant EFT option, and **never enter real payment details**.
+6. Complete the account-confirmation step.
+7. Record the generated \`CE...\` collection number.
+8. Open **My orders** and refresh to see progress through **Placed → Preparing → Ready → Collected**.
 
-## 6. Run the website locally with WampServer
+### Administrator
 
-**Requirements:** Windows, WampServer (Apache and MySQL/MariaDB), PHP **7.2+** with PDO MySQL enabled, a browser and phpMyAdmin. The project has legacy PHP 7.2–7.4 compatibility for local use, but **PHP 7.x is no longer security-supported**. Use a currently supported PHP version on a public host.
+A separately provisioned Administrator sees the **Administration** section. Its tabs support **Orders, Products, Users and Vendors**. The Administrator can update menu products and availability, maintain collection locations, and progress valid orders through their fulfilment stages. Normal Customers cannot access these functions.
 
-### Clone into the existing project layout
+## 8. Local development and Android build
 
-In Windows PowerShell:
+### Requirements
 
-```powershell
-cd C:\wamp64\www
+- Android Studio with JDK 17 and a compatible Android SDK.
+- PHP with PDO MySQL and a local MySQL/MariaDB instance for optional website development.
+- WampServer on Windows if local PHP hosting is required.
+- Internet access for testing against HelioHost.
+
+### Clone the source
+
+\`\`\`powershell
 git clone https://github.com/Khayaguzu/campuseats.git
-cd C:\wamp64\www\campuseats
-```
+cd campuseats
+git switch codex/google-sso-web-android
+\`\`\`
 
-Start WampServer and wait until Apache and the database server are running. If you cloned the repo as shown, the website is at:
+### Run the Android app
 
-**http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web/**
+1. Open **only** \`CampusEats_Website_Android_App_Separated/Android_App\` in Android Studio.
+2. Check its \`gradle.properties\` values:
 
-This is a *nested repository* URL. The shorter `http://localhost/campuseats/web/` only applies if you separately copy the **contents** of `Website/` directly into `C:\wamp64\www\campuseats`.
-
-### Set up the database
-
-- **Fresh local installation:** In phpMyAdmin, select the MySQL/MariaDB instance you intend to use, then import `Website/database/schema.sql` and afterwards `Website/database/seed.sql`. Do this only once on a fresh database.
-- **Existing installation with data:** **Back it up first**; do not re-import `schema.sql` or `seed.sql`. Apply `Website/database/payment_migration.sql` if the `order_payments` table is missing.
-- The database port may be **3306**, **3307** or **3308**, depending on your WampServer configuration. The PHP connection must use the same server/port as the imported database.
-
-Copy `Website/server/config.example.php` to `Website/server/config.php` and edit **only your private copy**, for example:
-
-```php
-'db_host' => '127.0.0.1',
-'db_port' => 3308, // Replace with YOUR actual MySQL/MariaDB port.
-'db_name' => 'campuseats',
-'db_user' => 'YOUR_LOCAL_DB_USER',
-'db_password' => 'YOUR_PRIVATE_PASSWORD',
-'base_url' => 'http://localhost/campuseats/CampusEats_Website_Android_App_Separated/Website/web',
-'secure_cookies' => false,
-```
-
-Those lines are settings **inside the returned PHP array**, not a complete replacement for the configuration file.
-
-Create the initial admin **only on a fresh installation** by running the PHP CLI script, substituting your PHP executable if `php` is not on `PATH`:
-
-```powershell
-cd C:\wamp64\www\campuseats
-php .\CampusEats_Website_Android_App_Separated\Website\server\create-admin.php admin@example.com "Campus Administrator" "ChooseYourOwnStrongPassword"
-```
-
-Check the API at your local nested URL followed by `api.php?action=bootstrap`. A valid setup returns JSON; then open the website and sign in.
-
-## 7. Run or build the Android app
-
-1. Install **Android Studio**, JDK 17 (or Android Studio's compatible bundled runtime) and the Android SDK.
-2. Select **File → Open** and choose **only** `C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Android_App`.
-3. Open `gradle.properties`; for the **hosted website**, set:
-
-   ```properties
+   \`\`\`properties
    CAMPUS_BASE_URL=https://khayaguzu.helioho.st/
    CAMPUS_SSO_URL=https://khayaguzu.helioho.st/
-   ```
+   \`\`\`
 
-4. Click **Sync Project with Gradle Files**, then select an emulator or connected Android phone.
-5. Press **Run** in Android Studio, or use PowerShell to build a debug APK:
+3. Synchronise Gradle, select an emulator or Android phone and press **Run**.
+4. Or build a debug APK:
 
-   ```powershell
-   cd C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Android_App
-   .\gradlew.bat clean :app:assembleDebug
-   ```
+   \`\`\`powershell
+   cd CampusEats_Website_Android_App_Separated/Android_App
+   .\gradlew.bat :app:assembleDebug
+   \`\`\`
 
-6. Find the local output in `Android_App/app/build/outputs/apk/debug/app-debug.apk`. Install it on your Android phone only if you trust the source.
+5. Find the APK at \`app/build/outputs/apk/debug/app-debug.apk\`.
 
-A **`BUILD SUCCESSFUL`** result means Gradle completed. Deprecation warnings are not build failures. The generated `BuildConfig.java`, `.gradle/`, `.idea/`, `build/`, `app/build/` and `local.properties` are local/generated files: **do not edit or commit them**.
+**Note:** \`10.0.2.2\` is an Android emulator address for a developer's local machine. It is not the URL for a physical phone. For shared/phone builds, use the actual hosted HTTPS address. An APK created before a configuration change must be rebuilt and reinstalled.
 
-### Local emulator testing
+### Run the website locally
 
-To use WampServer instead of the hosted HTTPS site, temporarily set **both** Gradle URL properties to:
+For a **new local database only**, use the schema and seed SQL provided by the source branch. Copy \`Website/server/config.example.php\` to the private \`config.php\` and set your local database credentials. Do not place this file in Git or inside a publicly served directory.
 
-```properties
-CAMPUS_BASE_URL=http://10.0.2.2/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
-CAMPUS_SSO_URL=http://10.0.2.2/campuseats/CampusEats_Website_Android_App_Separated/Website/web/
-```
+For an **existing** database with orders and accounts, back up the database and follow the migration guide instead of running a fresh seed import.
 
-`10.0.2.2` works **inside the Android emulator only**. It reaches the Windows computer; it is not a URL for Windows Chrome or a physical phone. A physical device can use the hosted HTTPS URL, or a correctly configured private LAN address for local development. Release builds require HTTPS. Restore the hosted URLs before producing an APK for sharing.
+See [Website setup](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/README.md) and [Android setup](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Android_App/README.md).
 
-## 8. Download an APK from GitHub Actions
+## 9. GitHub and version-control workflow
 
-GitHub Actions automatically compiles the Android **debug APK** when relevant Android files change on `main`. You can also trigger the workflow manually:
+GitHub is the project's **source-control, collaboration, documentation and continuous-integration platform**. It is distinct from the HelioHost server, which actually runs the PHP website.
 
-1. Open **[GitHub Actions](https://github.com/Khayaguzu/campuseats/actions)**.
-2. Choose **[Build CampusEats Android APK](https://github.com/Khayaguzu/campuseats/actions/workflows/build-android-apk.yml)**.
-3. Select **Run workflow → main → Run workflow** (if permitted by your GitHub account).
-4. Wait for the **Build debug APK** job to finish successfully.
-5. Open the completed workflow run, scroll to **Artifacts**, and download **`CampusEats-Android-debug-APK`**.
-6. Extract the ZIP and install its `app-debug.apk` on a test Android device. Installation from outside the Play Store may require device permission.
+**How GitHub was used:**
 
-The workflow builds with Java 17 and SDK 35 and checks that the hosted HTTPS address is included. Artifacts are kept for **30 days**. This is a **debug/test APK**, not a Play Store release; production distribution requires a properly signed release and further testing.
+- **Repository:** \`Khayaguzu/campuseats\` stores the website, Android app, SQL migrations, tests and documentation.
+- **Commits:** Track changes to source files and provide a history of the prototype and later improvements.
+- **Branches:** Separate the main project baseline from the more recent general-customer/SSO update.
+- **Pull requests:** Allow changes to be reviewed and tested before they are merged into \`main\`.
+- **Workflow files:** Keep build and test steps versioned under \`.github/workflows/\`.
+- **Artifacts:** Distribute a generated debug APK for testing without requiring the reviewer to compile it locally.
+- **README and release notes:** Provide onboarding, architecture, development steps, visual evidence and a change history.
+- **Private configuration:** Actual database passwords and OAuth secrets must **never** be committed.
 
-**PHP tests:** The separate [Test CampusEats Checkout PHP](https://github.com/Khayaguzu/campuseats/actions/workflows/test-checkout-php.yml) workflow syntax-checks checkout PHP and runs payment helper tests. Passing CI does not replace manual browser/phone tests.
+### Example contribution process
 
-## 9. Deploy the website to HelioHost/Plesk
+\`\`\`bash
+git checkout -b docs/update-project-report
+git add README.md RELEASE_NOTES.md docs/images
+git commit -m "docs: document CampusEats design, CI and release updates"
+git push -u origin docs/update-project-report
+\`\`\`
 
-The project was deployed for coursework using HelioHost's Plesk File Manager and MariaDB. On any PHP host, preserve this separation:
+Create a pull request, review the diff and check the relevant workflows before merging. The command above is an **illustration of good workflow**, not a claim that this exact branch was created during development.
 
-```text
-Home directory/
-├── httpdocs/                  <-- public web files ONLY
-│   ├── index.php
-│   ├── api.php
-│   ├── pay.php
-│   ├── payfast-itn.php
-│   ├── sso.php
-│   └── assets/ (including food/)
-└── server/                    <-- PRIVATE PHP server files
-    ├── bootstrap.php
-    ├── payments.php
-    └── config.php             <-- PRIVATE, never in Git
-```
+## 10. GitHub Actions and automated testing
 
-The PHP files in `httpdocs` use relative includes that expect the private `server` folder to be its sibling. **Do not upload `server/config.php` into `httpdocs` or commit it to GitHub.**
+**GitHub Actions** runs workflows defined in YAML files. It can install build dependencies, compile the Android project, run PHP/JavaScript tests and publish artifacts. This provides repeatable evidence that a commit can build and pass defined checks; it does **not** automatically prove that the live site, phone or real payment provider is working.
 
-### Hosted setup sequence
+### Workflow overview
 
-1. Create the hosting site and open **Plesk → Files**.
-2. Copy **the contents of `Website/web/`** into `httpdocs/`. Uploading a ZIP and extracting it there is convenient. Do not leave the files hidden under an extra `web/` subfolder unless the website URL is adjusted accordingly.
-3. Create `server/` **beside**, not inside, `httpdocs/`. Upload `bootstrap.php` and `payments.php` and prepare a private `config.php`.
-4. Create a MariaDB database and a dedicated database user in **Plesk → Databases**. Plesk may prefix names, such as `YOURPREFIX_campuseats`; use the actual values in the private PHP config. Database access normally needs **local connections only**.
-5. **For a fresh host database**, select that database in phpMyAdmin. The repository's `schema.sql` begins with `CREATE DATABASE campuseats` and `USE campuseats`: remove/adjust those statements in an import copy when using a Plesk-prefixed database. Likewise remove/adjust `USE campuseats` in an import copy of `seed.sql`, and import the seed **once**.
-6. **For an existing hosted database**, make a backup and apply only needed migrations. **Do not run the seed again**. The `payment_migration.sql` also contains `USE campuseats`, so adjust an import copy to target the selected Plesk database.
-7. Set `base_url` to the real HTTPS website origin, e.g. `https://khayaguzu.helioho.st`, and set `secure_cookies` to `true`.
-8. Confirm the main page and `/api.php?action=bootstrap` load from the live domain.
+| Workflow | Trigger and purpose | Main activities | Output |
+| --- | --- | --- | --- |
+| [Build CampusEats Android APK](.github/workflows/build-android-apk.yml) | Android changes on \`main\`, pull requests in the updated branch, or manual run | Check out repository, install Temurin Java 17 and Android SDK 35, configure Gradle caching, run \`:app:assembleDebug\`, verify APK exists and HTTPS URL is compiled | \`CampusEats-Android-debug-APK\` artifact, retained 30 days |
+| [Test CampusEats Checkout PHP](.github/workflows/test-checkout-php.yml) | Checkout-related changes, PR or manual run | Install PHP 8.3, lint payment/API/test PHP, execute payment helper tests | Pass/fail test result in Actions |
+| [Test CampusEats SSO](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/.github/workflows/test-sso.yml) | Updated branch PR, manual run, or push to \`main\` after merge | Launch isolated MySQL 8 service, lint PHP, check JavaScript syntax, run session/payment tests, migration checks, customer-order integration, shared API contract and SSO ticket/session tests | Pass/fail integration result |
 
-**File permissions:** For ordinary public static assets and PHP files use **644** (`rw-r--r--`); for public asset directories such as `assets/` and `assets/food/` use **755** (`rwxr-xr-x`). If CSS, JavaScript, the logo or food images show **403 Forbidden**, confirm that the directories are traversable and the files readable, then refresh. Keep the private server area restricted appropriately; do not set credentials to public access or use 777 permissions.
+### Successful workflow evidence, 12 November 2026
 
-**Do not export real user/password tables to GitHub.** The hosted database and local WampServer database are separate until data is explicitly migrated. Existing local usernames do not magically appear on a new host; import only authorised data through secure channels or register accounts on the host.
+The following GitHub Actions runs completed **successfully** against the updated feature-branch commit \`abaade98cbc3a5276629fd1a0885e1bbcf35298a\`:
 
-## 10. Configure coursework checkout
+- ✅ [Android APK build, run 43159988806](https://github.com/Khayaguzu/campuseats/actions/runs/43159988806)
+- ✅ [Checkout PHP tests, run 43159988817](https://github.com/Khayaguzu/campuseats/actions/runs/43159988817)
+- ✅ [SSO and customer integration tests, run 43159988788](https://github.com/Khayaguzu/campuseats/actions/runs/43159988788)
 
-The project includes two **distinct** no-charge testing modes:
+### How to download the generated APK
 
-| Mode | Where | Purpose |
-| --- | --- | --- |
-| `payments.demo` | Local loopback only | Developer payment simulation on localhost. Deliberately blocked for remote devices and public hosts. |
-| `payments.school_checkout` | Explicitly configured HTTPS host | Coursework order-confirmation flow for signed-in users. Does not move funds. |
-| `payments.payfast` | Configured HTTPS callback | Optional genuine provider payment, **disabled unless configured**. |
+1. Open [GitHub Actions](https://github.com/Khayaguzu/campuseats/actions).
+2. Choose a successful **Build CampusEats Android APK** run for the **updated source branch**, not an older prototype run.
+3. Open **Artifacts** and download \`CampusEats-Android-debug-APK\`.
+4. Extract the ZIP and install \`app-debug.apk\` on an Android test phone.
+5. Confirm the app points to \`https://khayaguzu.helioho.st/\`.
 
-**Do not interpret `school_checkout` as a real payment gateway.** The UI provides simulated Card/Instant EFT choices for the course demonstration, and stores confirmation/collection status without collecting banking credentials or funds.
+Artifacts expire after the configured retention period. A debug APK is suitable for testing/coursework, **not** a signed Google Play release.
 
-For a controlled coursework site, add the following **inside the existing `payments` section** in the **private** `server/config.php`:
+\`\`\`mermaid
+flowchart LR
+    COMMIT["Git commit / pull request"] --> ACTION["GitHub Actions"]
+    ACTION --> BUILD["Android APK build"]
+    ACTION --> PHP["PHP checkout tests"]
+    ACTION --> SSO["Customer / SSO integration"]
+    BUILD --> ARTIFACT["Debug APK artifact"]
+    ARTIFACT --> PHONE["Android phone testing"]
+    PHP --> RESULT["CI feedback"]
+    SSO --> RESULT
+\`\`\`
 
-```php
-'school_checkout' => [
-    'enabled' => true,
-    'allow_registered_users' => true,
-    'allowed_user_ids' => []
-],
-```
+## 11. Deployment, configuration and data safety
 
-- With `allow_registered_users=true`, any **signed-in account** with a valid user ID (including newly registered students and lecturers) can use the no-charge flow. **Anonymous visitors cannot check out.**
-- With `allow_registered_users=false`, only IDs in `allowed_user_ids` can check out. If the list is empty, nobody qualifies.
-- Student **verification still determines the 10% discount** and never grants administrator privileges.
-- The configured `base_url` must be HTTPS and match the request host. The PHP server must have the current `server/payments.php` and `web/api.php` source.
-- The customer confirms the order by supplying **the same CampusEats account email and password**, not bank credentials.
-- Set `school_checkout.enabled=false` when no longer demonstrating. **Open registration plus no-charge orders on a public site can be abused**; use the restricted allowlist when appropriate.
+The hosted deployment separates public website code from private server code:
 
-**Existing database:** Make sure the `order_payments` table exists. Back up the database before applying the payment migration, adjusting any database-name statement to match your actual host.
+\`\`\`text
+HelioHost home directory/
+├── httpdocs/               # Public index.php, api.php, SSO and assets
+└── server/                 # Private bootstrap, sessions, payments, config.php
+\`\`\`
 
-### Confirming checkout
+For the upgraded Customer release:
 
-Sign in with a **new student or lecturer**, add food to the basket and check whether **Continue to checkout** is shown. Confirm the account credentials and verify a **collection number** appears under **My orders**. The administrator can then move the order through the status stages. Repeat on the Android app: it accesses the **same hosted PHP API and database**.
+1. Back up the existing MariaDB database and private configuration first.
+2. Apply \`database/general_customers_migration.sql\` to the **existing** database after reviewing it.
+3. Preserve existing customer IDs, passwords, baskets, orders and historical prices.
+4. Update the public web and private PHP server code together.
+5. Keep \`server/config.php\` out of GitHub and out of \`httpdocs\`.
+6. Test customer registration, customer permissions, account settings, menu, checkout, order history and administrator controls.
+7. Rebuild the Android APK when Kotlin or Gradle settings change.
 
-## 11. Optional Google sign-in and genuine payments
+Useful documents in the updated branch:
 
-**Google single sign-on (optional):** The PHP backend includes `sso.php` and an Android browser-return flow. Google sign-in is not available until the site owner creates OAuth credentials, registers the correct callback URI and sets `google_client_id` and `google_client_secret` **privately**. Email/password login works without Google SSO. Google identity does not automatically grant verified student or administrator privileges. See [the website's SSO setup instructions](CampusEats_Website_Android_App_Separated/Website/README.md#3-configure-google-single-sign-on).
+- [General customer migration](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/GENERAL-CUSTOMERS.md)
+- [HelioHost deployment and rollback](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/HELIOHOST-DEPLOYMENT.md)
+- [API documentation](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/API.md)
+- [SSO configuration guide](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/SSO-DEMONSTRATION.md)
 
-**PayFast (optional):** A real merchant flow is implemented separately through `pay.php` and `payfast-itn.php`, with server-side provider verification. It must be configured and independently sandbox-tested before any real use. No live merchant credentials are provided and **the coursework mode does not charge money**. Manual EFT approval is not part of the current checkout flow. Never request bank passwords or card numbers in CampusEats itself.
+## 12. Innovations and improvements since the prototype
 
-## 12. Testing and troubleshooting
+This release is an **incremental improvement of an existing working prototype**, not a claim that every feature is new to computing. The following changes differentiate the updated project from its earlier CampusEats version:
 
-### Project checks
+| Area | Earlier prototype | Updated CampusEats v1.1.0 | Contribution |
+| --- | --- | --- | --- |
+| **Audience** | Student/Lecturer-oriented registration | General public Customer registration; separate Administrator | More inclusive onboarding and simpler role rules |
+| **Branding** | Earlier institution-related design | Consistent independent CampusEats logo, colours and food-led UI | Stronger, coherent product identity |
+| **Android experience** | Local server / emulator URL could prevent connectivity | Shared hosted HTTPS interface with responsive styling and physical-device testing | Same experience across browser and phone |
+| **Identity and permissions** | Academic account verification and role requests | Customer-only public signup, server-enforced Administrator permissions | Reduced privilege-escalation risk |
+| **Shared information** | Existing website/app integration | Verified current shared accounts, order records and profile settings | One central source of truth |
+| **Checkout** | Earlier checkout controls | Explicit sample Card / Instant EFT no-charge workflow and confirmation reference | End-to-end demonstration without financial transactions |
+| **Order tracking** | Basic collection workflow | Clear order stage, collection number and order-history views | Better visibility of progress |
+| **Preferences** | Earlier account configuration | Mobile-friendly profile, theme and order-update preferences | Personalised UI and account management |
+| **Quality assurance** | Primarily manual prototype testing | GitHub Actions APK compilation, PHP checkout checks, SSO/customer integration tests | Repeatable build and regression evidence |
+| **Deployment** | Local-development assumptions | HelioHost private/public file separation and migration/rollback guidance | More reliable deployment practice |
 
-From the **Website** directory in PowerShell:
+**Innovative features in the context of this coursework:**
 
-```powershell
-cd C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Website
-python tests\shared_client_contract.py
-php tests\payment_helpers.php
-php -l web\api.php
-php -l server\payments.php
-```
+1. **Shared web-and-app architecture:** A Kotlin WebView reuses the hosted responsive interface and server-side rules.
+2. **Controlled account migration:** Historical orders remain while prior academic roles are converted to general Customers.
+3. **Server-authoritative ordering:** Stock, totals, permissions and order states are validated by the PHP backend.
+4. **Practice payment experience:** Checkout supports realistic Card/Instant EFT selection and collection confirmation without charging customers.
+5. **Cross-platform order visibility:** Browser and phone display the same persisted order records once each client is authenticated.
+6. **Automated build/test pipeline:** GitHub Actions provides reproducible verification and testable Android APK artifacts.
 
-The shared-client check verifies source-level website/Android API parity; the payment helper tests check pricing/signatures and restrictions on no-charge checkout. The integration suite (`tests/integration.py`) **writes database records**: run it **only on an isolated test database**, never the hosted course database.
+For the complete detailed change log and evidence, read [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-### Common problems
+## 13. Testing evidence, limitations and next steps
 
-| Symptom | Check / solution |
+### Testing recorded for this project
+
+- The live website loaded its updated menu, logo, category filters and food images.
+- Android Studio produced a successful APK build and the app opened against the hosted HTTPS address.
+- Android's responsive CSS issue was corrected and verified visually in the emulator.
+- Customer login and My orders were exercised through Android.
+- A no-charge practice checkout produced a collection number (for example, \`CE000016\` and \`CE000019\`); corresponding order details were visible under My orders.
+- Customer access and administrator-only navigation were checked during testing.
+- Three GitHub Actions workflows passed for the updated source commit, as linked above.
+
+### Known limitations
+
+- **No actual payment processing.** No-charge checkout must not be described as payment received. Real provider integration requires additional validation and merchant setup.
+- **Google Sign-In not configured.** Source support exists but production OAuth keys, consent-screen configuration and redirect validation are still required.
+- **Debug APK only.** Publishing to Google Play requires a separately signed Android App Bundle and further release testing.
+- **Internet dependence.** The Android WebView requires the hosted site and API to be reachable.
+- **Sample content.** Product photographs and catalogue entries are illustrative.
+- **Unmerged source branch.** The v1.1.0 Customer implementation is on \`codex/google-sso-web-android\` until reviewed and merged to \`main\`.
+- **Accessibility and load testing.** More systematic accessibility, performance, device compatibility and security testing are appropriate before production use.
+
+### Future improvements
+
+- Configure and test Google OAuth sign-in in a controlled environment.
+- Integrate a genuine payment provider with verified server-side callbacks before enabling real charges.
+- Complete release signing, Play Store assets, device testing and store policy checks.
+- Add wider integration, usability, accessibility and performance test coverage.
+- Improve customer notifications and production monitoring when justified by requirements.
+
+## 14. Documentation and release notes
+
+| Document | Purpose |
 | --- | --- |
-| Blank/unformatted page or missing photos | Check `httpdocs/assets/` and permissions: files **644**, directories **755**. Hard-refresh the page. |
-| API says "Server setup required" or "Service unavailable" | Confirm private `server/config.php`, database host/port/name/user, PHP PDO MySQL and server error logs. |
-| Login worked locally but not online | Local and hosted databases are different; create/import the correct hosted user record safely. |
-| "Email or password is incorrect" | Use the CampusEats password for that **hosted account**; reset/change it through authorised account settings. |
-| Student discount not applied | The **student number must be verified** by an administrator. Lecturer accounts do not receive the discount. |
-| "Checkout is not enabled for this account" | Verify current `payments.php`, the `school_checkout` settings, HTTPS host matching and that the user is signed in. |
-| "Payment database setup is incomplete" | Back up the DB and add/upgrade `order_payments` using the migration against the **correct** database. |
-| App cannot connect to WampServer | Use `10.0.2.2` **inside the emulator**, not on Windows/physical phones; check Apache and the URL in emulator Chrome. |
-| App displays older features | Rebuild/reinstall the Android app if native configuration changed. For hosted webpage changes, refresh WebView/site. |
-| Git lists `.gradle/`, `.idea/`, `build/` or `local.properties` | These are local artifacts; keep `.gitignore` and do not commit them. |
-| Password/CSRF error after sign-in | Refresh to obtain a new session token and sign in again if needed; inspect server logs without posting secrets. |
-| APK build shows warnings | `BUILD SUCCESSFUL` is not an error. Investigate only actual `FAILURE` or installation/runtime messages. |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | Prototype-to-v1.1.0 update history and specifically identified innovative features |
+| [General Customers](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/GENERAL-CUSTOMERS.md) | Migration and updated role model |
+| [HelioHost Deployment](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/docs/HELIOHOST-DEPLOYMENT.md) | Backups, deployment sequence, tests and rollback |
+| [Website README](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Website/README.md) | Local website setup |
+| [Android README](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/CampusEats_Website_Android_App_Separated/Android_App/README.md) | Device configuration and APK creation |
 
-**Security reminder:** Never post `server/config.php`, database passwords, Google client secrets, PayFast keys, authenticated API JSON containing CSRF tokens, or private customer data in issues, screenshots or commits. If a secret was shared, **rotate it** and update the private host config.
-
-## 13. Development summary and further documentation
-
-Major changes made during development include:
-
-- Separated the website and Kotlin Android Studio project while preserving **one shared REST API and database**.
-- Updated WampServer/PHP compatibility and corrected MySQL port/configuration handling.
-- Implemented role-specific registration, student verification, student discounts, profiles, themes, shared baskets, orders and admin inventory/vendor management.
-- Added order payment records, account confirmation before checkout, simulated course checkout, collection numbers and order tracking.
-- Deployed the website to **HelioHost**, configured a hosted MariaDB database and corrected server/static-asset permissions.
-- Updated the Android app to use the hosted HTTPS website and tested its WebView ordering and order-history behaviour.
-- Added **GitHub Actions** for building the debug APK and testing PHP checkout helpers.
-- Extended the no-charge coursework checkout so **newly registered lecturers and students** can place orders without maintaining a manual user-ID allowlist when that option is enabled.
-- Produced separate user-support and user-documentation materials for coursework; the repository's help sections and linked technical guides remain available to all readers.
-
-### More documentation
-
-- [Website installation, role, SSO and developer instructions](CampusEats_Website_Android_App_Separated/Website/README.md)
-- [Android Studio setup and API connection](CampusEats_Website_Android_App_Separated/Android_App/README.md)
-- [Shared REST API reference](CampusEats_Website_Android_App_Separated/Website/docs/API.md)
-- [Validation notes and limitations](CampusEats_Website_Android_App_Separated/Website/docs/VALIDATION.md)
-- [Image credits](CampusEats_Website_Android_App_Separated/Website/docs/IMAGE-CREDITS.md)
-- [Android build workflow](.github/workflows/build-android-apk.yml)
-- [PHP checkout test workflow](.github/workflows/test-checkout-php.yml)
-
-**Maintenance:** Keep source changes in Git. Upload only appropriate public PHP/assets and private server code to the correct hosting directories, and keep the private `config.php` out of the repository. After source changes, run the appropriate tests, review the hosted site and rebuild the APK if native Android sources or build properties changed.
-
----
-
-**Project status:** An educational campus-collection ordering system. A debug Android package is available through GitHub Actions; public hosting and no-charge course checkout are configured separately from genuine payments. Do not interpret a simulated confirmation as a financial receipt or a guarantee of readiness for real commercial operation.
+**Project team:** Makaya Guzu and Naoyuki Christopher Higaki.  
+**Project type:** Academic software-development portfolio.  
+**Last documentation update:** 12 November 2026.
