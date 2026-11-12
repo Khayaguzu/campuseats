@@ -1,8 +1,8 @@
 # CampusEats Release Notes
 
-**Latest documented version:** Android **1.1.0** (\`versionCode 2\`)  
+**Latest documented version:** Android **1.1.0** (`versionCode 2`)  
 **Documentation date:** 12 November 2026  
-**Corresponding application source:** [\`codex/google-sso-web-android\`](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android)  
+**Corresponding application source:** [`codex/google-sso-web-android`](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android)  
 **Live demonstration:** https://khayaguzu.helioho.st/
 
 > The current application is a **no-charge demonstration project**. No funds are deducted or received. Google OAuth and real PayFast services are not enabled until independently configured and verified. These notes describe source changes and observed test results, not a published Google Play release.
@@ -52,10 +52,10 @@ The table summarises meaningful user-visible and technical changes. Minor edits 
 
 ### 3. Shared website and Android data
 
-**Before:** Local WampServer and emulator networking could cause a working website to fail in Android when a local \`10.0.2.2\` URL was used.
+**Before:** Local WampServer and emulator networking could cause a working website to fail in Android when a local `10.0.2.2` URL was used.
 
 **Now:**
-- The Kotlin Android WebView uses the hosted site at \`https://khayaguzu.helioho.st/\`.
+- The Kotlin Android WebView uses the hosted site at `https://khayaguzu.helioho.st/`.
 - Website and Android call the same PHP API and use the same hosted database.
 - Customers see centrally saved profiles, baskets, food items and orders on either platform after signing in.
 - Browser and WebView sessions remain isolated, so each client signs in separately.
@@ -94,7 +94,7 @@ The table summarises meaningful user-visible and technical changes. Minor edits 
 
 ### 6. Security, configuration and deployment improvements
 
-- Keep private database credentials in \`server/config.php\` outside the public document root.
+- Keep private database credentials in `server/config.php` outside the public document root.
 - Use HTTPS and secure cookies on the hosted installation.
 - Preserve historical accounts and orders during schema updates.
 - Treat the user-facing checkout state separately from verified receipt of money.
@@ -108,11 +108,11 @@ The table summarises meaningful user-visible and technical changes. Minor edits 
 
 **Three automated workflows** are defined for the updated source:
 
-1. **Android APK build:** Set up Java 17 and Android SDK 35, build \`app-debug.apk\`, verify the hosted URL and upload the artifact (retained 30 days).
+1. **Android APK build:** Set up Java 17 and Android SDK 35, build `app-debug.apk`, verify the hosted URL and upload the artifact (retained 30 days).
 2. **PHP checkout tests:** Syntax-check checkout/PHP files and execute payment helper tests.
 3. **SSO and customer integration tests:** Create an isolated MySQL service and exercise PHP/JavaScript syntax, session helpers, migration, user accounts, ordering, access control and SSO handoff.
 
-**Verified successful runs on 12 November 2026** (source commit \`abaade98cbc3a5276629fd1a0885e1bbcf35298a\`):
+**Verified successful runs on 12 November 2026** (source commit `abaade98cbc3a5276629fd1a0885e1bbcf35298a`):
 
 | Pipeline | Result | Evidence |
 | --- | --- | --- |
@@ -143,7 +143,7 @@ The following activities were demonstrated during final testing:
 | **Google OAuth** | Code support exists, but live credentials and authorised redirect setup are still needed |
 | **Real-money checkout** | Not enabled; PayFast credentials, sandbox verification, notification validation and operational controls are required |
 | **Google Play distribution** | Current artifact is a debug APK; build and sign a release Android App Bundle and complete Play Store checks |
-| **Main branch parity** | Updated version is still on a feature branch; review and merge before treating \`main\` code as v1.1.0 |
+| **Main branch parity** | Updated version is still on a feature branch; review and merge before treating `main` code as v1.1.0 |
 | **Broader test coverage** | Run further accessibility, security, load, device and usability testing |
 | **Notifications** | Order-update settings exist, but always-on background notifications would require additional infrastructure |
 
