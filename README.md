@@ -8,10 +8,10 @@
   <a href="https://khayaguzu.helioho.st/">Live Website</a> •
   <a href="https://github.com/Khayaguzu/campuseats/actions">GitHub Actions</a> •
   <a href="RELEASE_NOTES.md">Release Notes</a> •
-  <a href="#screenshots">Screenshots</a>
+  <a href="#3-screenshots">Screenshots</a>
 </p>
 
-> **Version information, 12 November 2026:** This README documents the **current, deployed CampusEats experience (Android v1.1.0)**. Its corresponding updated source is on the [\`codex/google-sso-web-android\` branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). The repository's default \`main\` source still includes some **older prototype files** until those changes are merged. Do not use an old APK or old database schema as evidence of the updated release.
+> **Version information, 12 November 2026:** This README documents the **current, deployed CampusEats experience (Android v1.1.0)**. Its corresponding updated source is on the [`codex/google-sso-web-android` branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). The repository's default `main` source still includes some **older prototype files** until those changes are merged. Do not use an old APK or old database schema as evidence of the updated release.
 
 > **Payment safety:** CampusEats currently demonstrates **no-charge practice checkout**. The card and Instant EFT fields use fictitious sample values. **No actual funds are collected or transferred.** Real PayFast processing is disabled until configured and independently tested. Google sign-in is also unavailable until OAuth credentials are configured.
 
@@ -123,7 +123,7 @@ Screenshots are reduced in resolution for repository readability and deliberatel
 
 ### Architecture
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
     C["Desktop / mobile browser"] --> W["Hosted responsive PHP / HTML / CSS / JavaScript UI"]
     A["Android Kotlin WebView"] --> W
@@ -134,14 +134,14 @@ flowchart TD
     ORD --> DB
     API --> UI["Order status, collection number and account data"]
     UI --> W
-\`\`\`
+```
 
 **Key design decision:** The Android application is **not** a second independent ordering implementation. It loads the shared HTTPS web interface, which calls the same-origin PHP API. The database and PHP application remain on the server. This reduces duplicated logic and helps ensure that a price or role rule is enforced once.
 
 ### Data flow for a collection order
 
 1. The customer signs in to a Customer account on the browser or within the Android app.
-2. The frontend requests catalogue data from the hosted \`api.php\` endpoint.
+2. The frontend requests catalogue data from the hosted `api.php` endpoint.
 3. Products are added to a basket, and quantities are displayed with server-backed prices.
 4. The customer chooses a collection time and enters optional notes.
 5. The practice checkout shows Card or Instant EFT **sample options** and requires account confirmation.
@@ -150,9 +150,9 @@ flowchart TD
 
 ### Database model
 
-The project uses an SQL schema with records for \`users\`, \`vendors\`, \`products\`, \`cart\`, \`orders\`, \`order_items\`, \`order_payments\`, \`mobile_tickets\`, \`audit_log\` and \`rate_limits\`. The relationship is based on account and product identifiers, and order lines preserve a snapshot of product information.
+The project uses an SQL schema with records for `users`, `vendors`, `products`, `cart`, `orders`, `order_items`, `order_payments`, `mobile_tickets`, `audit_log` and `rate_limits`. The relationship is based on account and product identifiers, and order lines preserve a snapshot of product information.
 
-\`\`\`mermaid
+```mermaid
 erDiagram
     users ||--o{ orders : places
     users ||--o{ cart : owns
@@ -163,7 +163,7 @@ erDiagram
     orders ||--o| order_payments : checkout
     users ||--o{ mobile_tickets : handoff
     users ||--o{ audit_log : administered_by
-\`\`\`
+```
 
 Money is stored as **integer cents**, so R45.00 is represented by 4500. The updated migration changes academic account roles to Customer while keeping existing accounts, orders and historical amounts. The source schema and migration are linked in [Section 11](#11-deployment-configuration-and-data-safety).
 
@@ -196,7 +196,7 @@ Money is stored as **integer cents**, so R45.00 is represented by 4500. The upda
 | Version control | Git and GitHub |
 | CI | GitHub Actions for APK compilation, PHP checkout and SSO/integration checks |
 
-\`\`\`text
+```text
 campuseats/
 ├── README.md
 ├── RELEASE_NOTES.md
@@ -217,9 +217,9 @@ campuseats/
         ├── app/src/main/              # Kotlin Android application
         ├── gradle.properties          # Hosted URL for WebView
         └── gradlew / gradlew.bat
-\`\`\`
+```
 
-The active implementation is in the [general-customer source branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). Version 1.1.0 is configured in its \`Android_App/app/build.gradle.kts\`. The older default branch may not yet contain all those source changes.
+The active implementation is in the [general-customer source branch](https://github.com/Khayaguzu/campuseats/tree/codex/google-sso-web-android). Version 1.1.0 is configured in its `Android_App/app/build.gradle.kts`. The older default branch may not yet contain all those source changes.
 
 ## 7. How to use CampusEats
 
@@ -231,7 +231,7 @@ The active implementation is in the [general-customer source branch](https://git
 4. Open **Basket**, verify quantities and choose a collection time.
 5. Continue to the clearly labelled no-charge checkout. Select a sample Card or Instant EFT option, and **never enter real payment details**.
 6. Complete the account-confirmation step.
-7. Record the generated \`CE...\` collection number.
+7. Record the generated `CE...` collection number.
 8. Open **My orders** and refresh to see progress through **Placed → Preparing → Ready → Collected**.
 
 ### Administrator
@@ -249,37 +249,37 @@ A separately provisioned Administrator sees the **Administration** section. Its 
 
 ### Clone the source
 
-\`\`\`powershell
+```powershell
 git clone https://github.com/Khayaguzu/campuseats.git
 cd campuseats
 git switch codex/google-sso-web-android
-\`\`\`
+```
 
 ### Run the Android app
 
-1. Open **only** \`CampusEats_Website_Android_App_Separated/Android_App\` in Android Studio.
-2. Check its \`gradle.properties\` values:
+1. Open **only** `CampusEats_Website_Android_App_Separated/Android_App` in Android Studio.
+2. Check its `gradle.properties` values:
 
-   \`\`\`properties
+   ```properties
    CAMPUS_BASE_URL=https://khayaguzu.helioho.st/
    CAMPUS_SSO_URL=https://khayaguzu.helioho.st/
-   \`\`\`
+   ```
 
 3. Synchronise Gradle, select an emulator or Android phone and press **Run**.
 4. Or build a debug APK:
 
-   \`\`\`powershell
+   ```powershell
    cd CampusEats_Website_Android_App_Separated/Android_App
    .\gradlew.bat :app:assembleDebug
-   \`\`\`
+   ```
 
-5. Find the APK at \`app/build/outputs/apk/debug/app-debug.apk\`.
+5. Find the APK at `app/build/outputs/apk/debug/app-debug.apk`.
 
-**Note:** \`10.0.2.2\` is an Android emulator address for a developer's local machine. It is not the URL for a physical phone. For shared/phone builds, use the actual hosted HTTPS address. An APK created before a configuration change must be rebuilt and reinstalled.
+**Note:** `10.0.2.2` is an Android emulator address for a developer's local machine. It is not the URL for a physical phone. For shared/phone builds, use the actual hosted HTTPS address. An APK created before a configuration change must be rebuilt and reinstalled.
 
 ### Run the website locally
 
-For a **new local database only**, use the schema and seed SQL provided by the source branch. Copy \`Website/server/config.example.php\` to the private \`config.php\` and set your local database credentials. Do not place this file in Git or inside a publicly served directory.
+For a **new local database only**, use the schema and seed SQL provided by the source branch. Copy `Website/server/config.example.php` to the private `config.php` and set your local database credentials. Do not place this file in Git or inside a publicly served directory.
 
 For an **existing** database with orders and accounts, back up the database and follow the migration guide instead of running a fresh seed import.
 
@@ -291,23 +291,23 @@ GitHub is the project's **source-control, collaboration, documentation and conti
 
 **How GitHub was used:**
 
-- **Repository:** \`Khayaguzu/campuseats\` stores the website, Android app, SQL migrations, tests and documentation.
+- **Repository:** `Khayaguzu/campuseats` stores the website, Android app, SQL migrations, tests and documentation.
 - **Commits:** Track changes to source files and provide a history of the prototype and later improvements.
 - **Branches:** Separate the main project baseline from the more recent general-customer/SSO update.
-- **Pull requests:** Allow changes to be reviewed and tested before they are merged into \`main\`.
-- **Workflow files:** Keep build and test steps versioned under \`.github/workflows/\`.
+- **Pull requests:** Allow changes to be reviewed and tested before they are merged into `main`.
+- **Workflow files:** Keep build and test steps versioned under `.github/workflows/`.
 - **Artifacts:** Distribute a generated debug APK for testing without requiring the reviewer to compile it locally.
 - **README and release notes:** Provide onboarding, architecture, development steps, visual evidence and a change history.
 - **Private configuration:** Actual database passwords and OAuth secrets must **never** be committed.
 
 ### Example contribution process
 
-\`\`\`bash
+```bash
 git checkout -b docs/update-project-report
 git add README.md RELEASE_NOTES.md docs/images
 git commit -m "docs: document CampusEats design, CI and release updates"
 git push -u origin docs/update-project-report
-\`\`\`
+```
 
 Create a pull request, review the diff and check the relevant workflows before merging. The command above is an **illustration of good workflow**, not a claim that this exact branch was created during development.
 
@@ -319,13 +319,13 @@ Create a pull request, review the diff and check the relevant workflows before m
 
 | Workflow | Trigger and purpose | Main activities | Output |
 | --- | --- | --- | --- |
-| [Build CampusEats Android APK](.github/workflows/build-android-apk.yml) | Android changes on \`main\`, pull requests in the updated branch, or manual run | Check out repository, install Temurin Java 17 and Android SDK 35, configure Gradle caching, run \`:app:assembleDebug\`, verify APK exists and HTTPS URL is compiled | \`CampusEats-Android-debug-APK\` artifact, retained 30 days |
+| [Build CampusEats Android APK](.github/workflows/build-android-apk.yml) | Android changes on `main`, pull requests in the updated branch, or manual run | Check out repository, install Temurin Java 17 and Android SDK 35, configure Gradle caching, run `:app:assembleDebug`, verify APK exists and HTTPS URL is compiled | `CampusEats-Android-debug-APK` artifact, retained 30 days |
 | [Test CampusEats Checkout PHP](.github/workflows/test-checkout-php.yml) | Checkout-related changes, PR or manual run | Install PHP 8.3, lint payment/API/test PHP, execute payment helper tests | Pass/fail test result in Actions |
-| [Test CampusEats SSO](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/.github/workflows/test-sso.yml) | Updated branch PR, manual run, or push to \`main\` after merge | Launch isolated MySQL 8 service, lint PHP, check JavaScript syntax, run session/payment tests, migration checks, customer-order integration, shared API contract and SSO ticket/session tests | Pass/fail integration result |
+| [Test CampusEats SSO](https://github.com/Khayaguzu/campuseats/blob/codex/google-sso-web-android/.github/workflows/test-sso.yml) | Updated branch PR, manual run, or push to `main` after merge | Launch isolated MySQL 8 service, lint PHP, check JavaScript syntax, run session/payment tests, migration checks, customer-order integration, shared API contract and SSO ticket/session tests | Pass/fail integration result |
 
 ### Successful workflow evidence, 12 November 2026
 
-The following GitHub Actions runs completed **successfully** against the updated feature-branch commit \`abaade98cbc3a5276629fd1a0885e1bbcf35298a\`:
+The following GitHub Actions runs completed **successfully** against the updated feature-branch commit `abaade98cbc3a5276629fd1a0885e1bbcf35298a`:
 
 - ✅ [Android APK build, run 43159988806](https://github.com/Khayaguzu/campuseats/actions/runs/43159988806)
 - ✅ [Checkout PHP tests, run 43159988817](https://github.com/Khayaguzu/campuseats/actions/runs/43159988817)
@@ -335,13 +335,13 @@ The following GitHub Actions runs completed **successfully** against the updated
 
 1. Open [GitHub Actions](https://github.com/Khayaguzu/campuseats/actions).
 2. Choose a successful **Build CampusEats Android APK** run for the **updated source branch**, not an older prototype run.
-3. Open **Artifacts** and download \`CampusEats-Android-debug-APK\`.
-4. Extract the ZIP and install \`app-debug.apk\` on an Android test phone.
-5. Confirm the app points to \`https://khayaguzu.helioho.st/\`.
+3. Open **Artifacts** and download `CampusEats-Android-debug-APK`.
+4. Extract the ZIP and install `app-debug.apk` on an Android test phone.
+5. Confirm the app points to `https://khayaguzu.helioho.st/`.
 
 Artifacts expire after the configured retention period. A debug APK is suitable for testing/coursework, **not** a signed Google Play release.
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
     COMMIT["Git commit / pull request"] --> ACTION["GitHub Actions"]
     ACTION --> BUILD["Android APK build"]
@@ -351,25 +351,25 @@ flowchart LR
     ARTIFACT --> PHONE["Android phone testing"]
     PHP --> RESULT["CI feedback"]
     SSO --> RESULT
-\`\`\`
+```
 
 ## 11. Deployment, configuration and data safety
 
 The hosted deployment separates public website code from private server code:
 
-\`\`\`text
+```text
 HelioHost home directory/
 ├── httpdocs/               # Public index.php, api.php, SSO and assets
 └── server/                 # Private bootstrap, sessions, payments, config.php
-\`\`\`
+```
 
 For the upgraded Customer release:
 
 1. Back up the existing MariaDB database and private configuration first.
-2. Apply \`database/general_customers_migration.sql\` to the **existing** database after reviewing it.
+2. Apply `database/general_customers_migration.sql` to the **existing** database after reviewing it.
 3. Preserve existing customer IDs, passwords, baskets, orders and historical prices.
 4. Update the public web and private PHP server code together.
-5. Keep \`server/config.php\` out of GitHub and out of \`httpdocs\`.
+5. Keep `server/config.php` out of GitHub and out of `httpdocs`.
 6. Test customer registration, customer permissions, account settings, menu, checkout, order history and administrator controls.
 7. Rebuild the Android APK when Kotlin or Gradle settings change.
 
@@ -416,7 +416,7 @@ For the complete detailed change log and evidence, read [RELEASE_NOTES.md](RELEA
 - Android Studio produced a successful APK build and the app opened against the hosted HTTPS address.
 - Android's responsive CSS issue was corrected and verified visually in the emulator.
 - Customer login and My orders were exercised through Android.
-- A no-charge practice checkout produced a collection number (for example, \`CE000016\` and \`CE000019\`); corresponding order details were visible under My orders.
+- A no-charge practice checkout produced a collection number (for example, `CE000016` and `CE000019`); corresponding order details were visible under My orders.
 - Customer access and administrator-only navigation were checked during testing.
 - Three GitHub Actions workflows passed for the updated source commit, as linked above.
 
@@ -427,7 +427,7 @@ For the complete detailed change log and evidence, read [RELEASE_NOTES.md](RELEA
 - **Debug APK only.** Publishing to Google Play requires a separately signed Android App Bundle and further release testing.
 - **Internet dependence.** The Android WebView requires the hosted site and API to be reachable.
 - **Sample content.** Product photographs and catalogue entries are illustrative.
-- **Unmerged source branch.** The v1.1.0 Customer implementation is on \`codex/google-sso-web-android\` until reviewed and merged to \`main\`.
+- **Unmerged source branch.** The v1.1.0 Customer implementation is on `codex/google-sso-web-android` until reviewed and merged to `main`.
 - **Accessibility and load testing.** More systematic accessibility, performance, device compatibility and security testing are appropriate before production use.
 
 ### Future improvements
