@@ -132,9 +132,9 @@ function basketView()
     const latestPickup = localDateTime(currentTime + 24 * 60 * 60000);
     const methods = [
         state.paymentOptions.payfast ? '<option value="payfast">PayFast secure online payment</option>' : '',
-        state.paymentOptions.demo ? '<option value="demo">Card or Instant EFT · no charge</option>' : ''
+        state.paymentOptions.demo ? '<option value="demo">No-charge checkout (Card or Instant EFT)</option>' : ''
     ].filter(Boolean).join('');
-    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT GOOD MEAL</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div><form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Complete checkout before collection. Your collection number appears after account confirmation. ${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'This is a demonstration checkout. No money is charged.' : 'Payment is handled by the selected provider.'} For allergies, confirm ingredients with the vendor before ordering.</p>${methods ? `<label>Payment method<select name="payment_method" required>${methods}</select></label><button type="submit">${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Continue to checkout' : 'Continue to payment'} · ${money(subtotal - discount)}</button>` : '<p class="notice">Checkout is not enabled for this account. Please contact the store for assistance.</p>'}</form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
+    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT GOOD MEAL</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div><form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Complete checkout before collection. Your collection number appears after account confirmation. ${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Practice checkout only. No money is charged or transferred.' : 'Payment is handled by the selected provider.'} For allergies, confirm ingredients with the vendor before ordering.</p>${methods ? `<label>Payment method<select name="payment_method" required>${methods}</select></label><button type="submit">${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Continue to checkout' : 'Continue to payment'} · ${money(subtotal - discount)}</button>` : '<p class="notice">Checkout is not enabled for this account. Please contact the store for assistance.</p>'}</form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
     if (!$('#basket-dialog').open)
     {
         $('#basket-dialog').showModal();
@@ -166,8 +166,8 @@ async function demoPaymentView(orderId)
 
     $('#payment-demo-content').innerHTML = `
         <span class="eyebrow">CAMPUSEATS SECURE CHECKOUT</span>
-        <h2 id="payment-demo-title">Review your checkout</h2>
-        <p class="demo-payment-warning">No money is charged. Card and EFT are checkout choices only. Do not enter banking or card details.</p>
+        <h2 id="payment-demo-title">Choose a payment option</h2>
+        <p class="demo-payment-warning">Practice checkout: no real payment will be collected. Use only the sample information provided. Never enter a real card number, CVV, banking password or PIN.</p>
         <div class="demo-payment-summary">
             <div class="demo-payment-line"><span>Order</span><strong>#${Number(order.id)}</strong></div>
             ${lines}
@@ -178,16 +178,34 @@ async function demoPaymentView(orderId)
         <form id="demo-payment-form" data-order-id="${Number(order.id)}">
             <fieldset class="demo-payment-methods">
                 <legend>Choose payment method</legend>
-                <label class="demo-payment-option"><input type="radio" name="demo_method" value="card" checked> Card <small>No card details needed.</small></label>
-                <label class="demo-payment-option"><input type="radio" name="demo_method" value="eft"> Instant EFT <small>No banking login needed.</small></label>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="card" checked> Card <small>Enter sample card details only.</small></label>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="eft"> Instant EFT <small>Choose a sample bank and reference.</small></label>
+            </fieldset>
+            <!-- Only fictional payment details are accepted. No real credentials are required. -->
+            <fieldset class="payment-identity" data-practice-fields="card">
+                <legend>Sample card details</legend>
+                <p class="hint">Use the sample number and expiry shown below. Never enter an actual card number or security code.</p>
+                <label>Name on sample card<input name="practice_cardholder" autocomplete="off" maxlength="100" placeholder="Sample Customer" required></label>
+                <label>Sample card number<input name="practice_card_number" autocomplete="off" inputmode="numeric" placeholder="4242 4242 4242 4242" pattern="4242 ?4242 ?4242 ?4242" required></label>
+                <label>Sample expiry (MM/YY)<input name="practice_expiry" autocomplete="off" placeholder="12/30" pattern="12/30" required></label>
+            </fieldset>
+            <fieldset class="payment-identity" data-practice-fields="eft" hidden>
+                <legend>Sample Instant EFT details</legend>
+                <p class="hint">No connection to a bank will occur. Do not enter account numbers, passwords or PINs.</p>
+                <label>Sample bank<select name="practice_bank" required disabled>
+                    <option value="">Select a sample bank</option>
+                    <option value="test_bank_1">Test Bank 1</option>
+                    <option value="test_bank_2">Test Bank 2</option>
+                </select></label>
+                <label>Sample reference<input name="practice_eft_reference" autocomplete="off" placeholder="TEST-1234" pattern="TEST-[0-9]{4,8}" required disabled></label>
             </fieldset>
             <fieldset class="payment-identity">
                 <legend>Confirm your CampusEats account</legend>
                 <label>Email address<input type="email" name="email" autocomplete="username" value="${escapeHtml(state.user.email)}" maxlength="190" required></label>
                 <label>CampusEats password<input type="password" name="password" autocomplete="current-password" required></label>
             </fieldset>
-            <button type="submit" class="full">Confirm order · ${money(order.total_cents)}</button>
-            <p class="hint">No money is transferred. Your collection number appears after you confirm your account. No administrator approval is needed.</p>
+            <button type="submit" class="full">Confirm no-charge order · ${money(order.total_cents)}</button>
+            <p class="hint">No funds are transferred. Confirm your CampusEats account to generate a collection number.</p>
         </form>
         <button class="secondary full" type="button" data-close="payment-demo-dialog">Return to orders</button>`;
     if (!$('#payment-demo-dialog').open)
@@ -232,7 +250,7 @@ function demoReceiptView(orderId, collectionNumber, amount)
     $('#payment-demo-content').innerHTML = `
         <span class="eyebrow">CAMPUSEATS ORDER CONFIRMATION</span>
         <h2 id="payment-demo-title">Order confirmed</h2>
-        <p class="demo-payment-warning">No money was charged. This is a demonstration confirmation, not proof of a bank payment.</p>
+        <p class="demo-payment-warning">No money was charged. This confirms a no-charge practice order, not a bank payment.</p>
         <div class="demo-payment-receipt" role="status">
             <span class="eyebrow">YOUR COLLECTION NUMBER</span>
             <strong class="demo-collection-code">${escapeHtml(collectionNumber)}</strong>
@@ -258,7 +276,7 @@ function orderCard(order, admin = false)
     const demoPayment = pending && demo && !admin
         ? `<p class="notice"><strong>No money is charged.</strong> Confirm your CampusEats account to receive a collection number.</p><button data-demo-pay="${order.id}">Continue to checkout</button>` : '';
     const online = pending && method === 'payfast' && !admin ? `<p class="notice">Online payment not yet confirmed. Use Pay online or refresh after returning from PayFast.</p><button data-pay="${order.id}">Pay online</button>` : '';
-    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">${collection}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">Internal order ${order.id} · ${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${paid ? (demo ? 'Confirmed · No charge (demo)' : 'Paid · ' + (method === 'payfast' ? 'PayFast verified' : 'Legacy payment')) : (demo ? 'Awaiting checkout' : 'Awaiting payment')}</span></div></div>${pending ? `<p class="notice">${demo ? 'Complete checkout before food preparation and collection.' : 'Payment is required before food preparation and collection.'}</p>` : ''}${paid && order.status !== 'cancelled' ? `<div class="progress">${stages.map((stage, index) => `<span class="${index <= stages.indexOf(order.status) ? 'done' : ''}">${stage}</span>`).join('')}</div>` : ''}${order.status === 'cancelled' ? '<p class="notice">Cancelled. Stock returned to the kitchens.</p>' : ''}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Discount ${money(order.discount_cents)}</p>${bankDetails}${online}${demoPayment}<div class="row">${admin && paid && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm collection' : 'Mark ' + next[order.status]}</button>` : ''}${!paid && ((admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed')) ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel pending order</button>` : ''}</div></article>`;
+    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">${collection}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">Internal order ${order.id} · ${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${paid ? (demo ? 'Practice order · no money received' : 'Paid · ' + (method === 'payfast' ? 'PayFast verified' : 'Legacy payment')) : (demo ? 'Awaiting checkout' : 'Awaiting payment')}</span></div></div>${pending ? `<p class="notice">${demo ? 'Complete checkout before food preparation and collection.' : 'Payment is required before food preparation and collection.'}</p>` : ''}${paid && order.status !== 'cancelled' ? `<div class="progress">${stages.map((stage, index) => `<span class="${index <= stages.indexOf(order.status) ? 'done' : ''}">${stage}</span>`).join('')}</div>` : ''}${order.status === 'cancelled' ? '<p class="notice">Cancelled. Stock returned to the kitchens.</p>' : ''}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Discount ${money(order.discount_cents)}</p>${bankDetails}${online}${demoPayment}<div class="row">${admin && paid && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm collection' : 'Mark ' + next[order.status]}</button>` : ''}${!paid && ((admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed')) ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel pending order</button>` : ''}</div></article>`;
 }
 
 function settingsView()
@@ -459,6 +477,27 @@ document.addEventListener('change', (event) =>
         state.vendor = event.target.value;
         renderProducts();
     }
+
+    /*
+     * Show the selected fictional payment details.
+     * Disable fields for the other method to avoid irrelevant validation.
+     */
+    if (event.target.matches('#demo-payment-form input[name="demo_method"]'))
+    {
+        const form = event.target.form;
+        const selectedMethod = event.target.value;
+
+        for (const method of ['card', 'eft'])
+        {
+            const group = form.querySelector('[data-practice-fields="' + method + '"]');
+            const selected = method === selectedMethod;
+            group.hidden = !selected;
+            group.querySelectorAll('input, select').forEach((field) =>
+            {
+                field.disabled = !selected;
+            });
+        }
+    }
 });
 
 document.addEventListener('submit', async (event) =>
@@ -480,8 +519,34 @@ document.addEventListener('submit', async (event) =>
         }
         if (form.id === 'demo-payment-form')
         {
-            // Both visible options simulate the SAME local-only API action.
-            // No card or banking information is ever sent to the PHP server.
+            /*
+             * Only documented fictional details are accepted.
+             * No card, bank, or sample payment details are sent to the API.
+             * The server reauthenticates the existing CampusEats account.
+             */
+            if (data.demo_method === 'card')
+            {
+                const number = String(data.practice_card_number || '').replace(/\s/g, '');
+                if (!String(data.practice_cardholder || '').trim()
+                    || number !== '4242424242424242'
+                    || data.practice_expiry !== '12/30')
+                {
+                    throw new Error('Use sample card 4242 4242 4242 4242 and expiry 12/30. Never enter a real card number.');
+                }
+            }
+            else if (data.demo_method === 'eft')
+            {
+                if (!['test_bank_1', 'test_bank_2'].includes(data.practice_bank)
+                    || !/^TEST-[0-9]{4,8}$/.test(String(data.practice_eft_reference || '')))
+                {
+                    throw new Error('Choose a sample bank and enter a reference such as TEST-1234.');
+                }
+            }
+            else
+            {
+                throw new Error('Choose a checkout method.');
+            }
+
             const orderId = Number(form.dataset.orderId);
             const matchingOrder = (await api('orders')).orders.find((o) => Number(o.id) === orderId);
             if (!matchingOrder || matchingOrder.payment_method !== 'demo')
