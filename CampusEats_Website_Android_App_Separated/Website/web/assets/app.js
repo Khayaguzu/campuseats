@@ -306,7 +306,7 @@ function adminView()
     {
         body = `<div class="two-col">${state.vendors.map((v) => `<section class="panel"><h2>${escapeHtml(v.name)}</h2><form class="vendor-form"><input type="hidden" name="id" value="${v.id}"><label>Vendor name<input name="name" value="${escapeHtml(v.name)}" maxlength="100" required></label><label>Collection location<input name="location" value="${escapeHtml(v.location)}" maxlength="150" required></label><label class="check"><input type="checkbox" name="is_open" ${Number(v.is_open) ? 'checked' : ''}>Accepting orders</label><button>Save vendor</button></form></section>`).join('')}</div>`;
     }
-    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Verified payments</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
+    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Confirmed checkouts (including no-charge orders)</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
 }
 
 function productEditor(id)
@@ -656,7 +656,7 @@ setInterval(async () =>
         {
             if (knownOrders.has(order.id) && (knownOrders.get(order.id).status !== order.status || knownOrders.get(order.id).paid !== order.payment_status))
             {
-                toast(order.payment_status === 'paid' ? `Payment confirmed. Collection number CE${String(order.id).padStart(6, '0')}.` : `Your order status is now ${order.status}.`);
+                toast(order.payment_status === 'paid' ? `Order confirmed. Collection number CE${String(order.id).padStart(6, '0')}.` : `Your order status is now ${order.status}.`);
                 if (route() === 'orders') await render();
             }
             knownOrders.set(order.id, { status: order.status, paid: order.payment_status });
