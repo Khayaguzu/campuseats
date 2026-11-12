@@ -43,24 +43,18 @@ try
             $name = textField($input, 'name', 100);
             $email = strtolower(textField($input, 'email', 190));
             $password = (string)($input['password'] ?? '');
-            $role = $input['role'] ?? '';
             if (!filter_var($email, FILTER_VALIDATE_EMAIL) || (strlen($password) < 12 || strlen($password) > 72))
             {
                 fail('Use a valid email and a password of 12 to 72 characters.');
             }
-            if (!in_array($role, ['student', 'lecturer', 'admin'], true))
-            {
-                fail('Choose a valid account type.');
-            }
-            $number = textField($input, 'student_number', 40, $role === 'student');
             if (query('SELECT id FROM users WHERE email=?', [$email])->fetch())
             {
                 fail('This email is already registered. Please sign in.');
             }
-            query('INSERT INTO users(name,email,password_hash,role,requested_role,student_number) VALUES (?,?,?,?,?,?)',
-                [$name, $email, password_hash($password, PASSWORD_DEFAULT), $role === 'admin' ? 'lecturer' : $role, $role, $number]);
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = (int)$pdo->lastInsertId();
+            // Public registration always creates a customer, regardless of submitted role fields.
+            query("INSERT INTO users(name,email,password_hash,role) VALUES (?,?,?,'customer')",
+                [$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
+            establishSession((int)$pdo->lastInsertId(), 'password');
             respond(['user' => currentUser()], 201);
         case 'login':
             rateLimit('login');
@@ -70,8 +64,7 @@ try
             {
                 fail('The email or password is incorrect.', 401);
             }
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = $user['id'];
+            establishSession((int)$user['id'], 'password');
             respond(['user' => currentUser()]);
         case 'logout':
             $_SESSION = [];
@@ -87,11 +80,8 @@ try
             {
                 fail('Invalid theme.');
             }
-            $number = textField($input, 'student_number', 40, $user['role'] === 'student');
-            // Changing the student identifier invalidates the previous verification.
-            $verified = $number === $user['student_number'] ? (int)$user['verified'] : 0;
-            query('UPDATE users SET name=?,phone=?,theme=?,student_number=?,verified=?,order_updates=? WHERE id=?',
-                [$name, $phone, $theme, $number, $verified, !empty($input['order_updates']) ? 1 : 0, $user['id']]);
+            query('UPDATE users SET name=?,phone=?,theme=?,order_updates=? WHERE id=?',
+                [$name, $phone, $theme, !empty($input['order_updates']) ? 1 : 0, $user['id']]);
             respond(['user' => currentUser()]);
         case 'password':
             $user = requireUser();
@@ -148,7 +138,7 @@ try
             $available = paymentOptions($config, $user);
             if (!in_array($method, ['demo', 'payfast'], true) || empty($available[$method]))
             {
-                fail('Checkout is not enabled for this account. Contact the project administrator.');
+                fail('Checkout is not enabled for this account. Contact the store administrator.');
             }
             $pdo->beginTransaction();
             // Serialize checkout per customer and lock inventory to prevent overselling.
@@ -176,7 +166,7 @@ try
                 $subtotal += (int)$item['price_cents'] * (int)$item['quantity'];
             }
             // All monetary calculations use integer cents; client prices are ignored.
-            $discount = $user['role'] === 'student' && $user['verified'] ? intdiv($subtotal + 5, 10) : 0;
+            $discount = 0; // New orders use the same menu prices for every customer.
             if ($method === 'payfast' && ($subtotal - $discount) < 500)
             {
                 $pdo->rollBack();
@@ -332,7 +322,7 @@ try
             }
             unset($order);
             respond(['products' => query('SELECT * FROM products ORDER BY id')->fetchAll(),
-                'users' => query('SELECT id,name,email,role,requested_role,student_number,verified FROM users ORDER BY id DESC')->fetchAll(),
+                'users' => query('SELECT id,name,email,role FROM users ORDER BY id DESC')->fetchAll(),
                 'orders' => $orders,
                 'stats' => query("SELECT COUNT(*) AS orders,COALESCE(SUM(CASE WHEN o.payment_status='paid' AND (p.method IS NULL OR p.method <> 'demo') THEN o.total_cents ELSE 0 END),0) AS revenue_cents FROM orders o LEFT JOIN order_payments p ON p.order_id=o.id")->fetch(),
                 'images' => array_map('basename', glob(__DIR__ . '/assets/food/*.jpg'))]);
@@ -369,35 +359,6 @@ try
             query('UPDATE vendors SET name=?,location=?,is_open=? WHERE id=?', [textField($input, 'name', 100), textField($input, 'location', 150), !empty($input['is_open']) ? 1 : 0, $id]);
             query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'vendor_save', $id]);
             respond(['ok' => true]);
-        case 'user_approve':
-            $user = requireUser(true);
-            $id = integerField($input, 'id', 1, 2147483647);
-            if ($id === (int)$user['id'])
-            {
-                fail('An administrator cannot approve their own account.');
-            }
-            $target = query('SELECT * FROM users WHERE id=?', [$id])->fetch();
-            if (!$target)
-            {
-                fail('User not found.', 404);
-            }
-            query('UPDATE users SET role=requested_role,verified=1 WHERE id=?', [$id]);
-            query('INSERT INTO audit_log(admin_id,action,target_id) VALUES (?,?,?)', [$user['id'], 'user_approve', $id]);
-            respond(['ok' => true]);
-        case 'role_request':
-            $user = requireUser();
-            if ($user['role'] === 'admin')
-            {
-                fail('Administrator roles are managed by another administrator.');
-            }
-            $role = $input['role'] ?? '';
-            if (!in_array($role, ['student','lecturer','admin'], true))
-            {
-                fail('Invalid role.');
-            }
-            $number = textField($input, 'student_number', 40, $role === 'student');
-            query('UPDATE users SET requested_role=?,role=?,verified=0,student_number=? WHERE id=?', [$role, $role === 'admin' ? 'lecturer' : $role, $number, $user['id']]);
-            respond(['user' => currentUser()]);
         default:
             fail('Endpoint not found.', 404);
     }

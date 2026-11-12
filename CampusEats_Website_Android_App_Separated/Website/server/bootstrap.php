@@ -42,6 +42,17 @@ else
     session_set_cookie_params(0, '/; SameSite=Lax', '', (bool)$config['secure_cookies'], true);
 }
 session_start();
+require_once __DIR__ . '/session.php';
+if (sessionExpired($_SESSION, time(), max(60, (int)($config['session_idle_seconds'] ?? 1800)),
+    max(60, (int)($config['session_absolute_seconds'] ?? 28800))))
+{
+    $_SESSION = [];
+    session_regenerate_id(true);
+}
+if (isset($_SESSION['user_id']))
+{
+    $_SESSION['last_activity'] = time();
+}
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('Cache-Control: no-store');
@@ -99,7 +110,7 @@ function currentUser(): ?array
     {
         return null;
     }
-    $user = query('SELECT id,name,email,role,requested_role,student_number,verified,phone,theme,order_updates FROM users WHERE id = ?', [$_SESSION['user_id']])->fetch();
+    $user = query('SELECT id,name,email,role,phone,theme,order_updates,(google_sub IS NOT NULL) AS google_linked FROM users WHERE id = ?', [$_SESSION['user_id']])->fetch();
     return $user ?: null;
 }
 

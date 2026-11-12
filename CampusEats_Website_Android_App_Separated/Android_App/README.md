@@ -1,6 +1,6 @@
 # CampusEats Android app, same website and REST API
 
-> **Current course-project setup:** Use the HTTPS hosted URL in both Android `gradle.properties` settings, rebuild and sign in to the same server-backed account. The separately configured HTTPS **`school_checkout`** mode can confirm **no-charge coursework orders** for newly registered students and lecturers when explicitly enabled in the private server configuration. It is not a financial transaction. Only the older local `payments.demo` mode is loopback-restricted. For role rules, hosted installation, detailed customer instructions and GitHub Actions APK download, read the [main README](../../README.md).
+> **Current general-customer setup:** Use the HTTPS hosted URL in both Android `gradle.properties` settings, rebuild and sign in to the same server-backed account. An optional **no-charge demonstration checkout** can be enabled using the existing private `school_checkout` configuration key. It is not a financial transaction. Local `payments.demo` remains restricted to loopback testing. For customer accounts, hosted deployment, and APK download instructions, read the [main README](../../README.md) and [deployment guide](../Website/docs/HELIOHOST-DEPLOYMENT.md).
 
 
 **Open this `Android_App` directory directly in Android Studio**, using **File > Open**. Do not open `campuseats` or `CampusEats_Website_Android_App_Separated` as the Android Gradle project root. This Kotlin application is a secure WebView container for the existing responsive CampusEats website, **not a separately implemented Android shopping interface**. Both website and app use the exact same JavaScript and `Website/web/api.php` endpoint, and the PHP server uses one MySQL database.
@@ -17,15 +17,15 @@ The shared production website and REST API are hosted at **https://khayaguzu.hel
 
 **Optional local testing with WampServer:** For emulator-only development, temporarily set both URLs in `gradle.properties` to `http://10.0.2.2/campuseats/CampusEats_Website_Android_App_Separated/Website/web/` and rebuild. The special `10.0.2.2` address points to the Windows host only from the emulator; it is not the live hosting address and will not work on a physical phone. Restore HTTPS before preparing a release build.
 
-**Payment and SSO:** Genuine PayFast payment is disabled unless properly configured and tested. The hosted school-project checkout is a separate, explicitly opted-in **no-charge** flow controlled by private `payments.school_checkout` settings. Do not enable unrestricted course checkout for real sales. The localhost-only `payments.demo` setting is distinct and must not be opened to remote clients. Google SSO remains unavailable until the server owner configures it.
+**Payment and SSO:** Genuine PayFast payment is disabled unless properly configured and tested. The hosted demonstration checkout is a separate, explicitly opted-in **no-charge** flow controlled by the legacy private `payments.school_checkout` key. Do not enable no-charge demonstration checkout for real sales. The localhost-only `payments.demo` setting is distinct and must not be opened to remote clients. Google SSO remains unavailable until the server owner configures it.
 
 ## REST API and database parity
 
-Both website and Android app render `Website/web/index.php` and load `Website/web/assets/app.js`. The browser's requests use `fetch('api.php?action=...')` on that server. Authentication cookies, student/lecturer/admin roles, discounts, basket, account settings, food catalogue, order number and payment confirmation all run on the PHP backend. The server is authoritative and uses MySQL via PDO. The Android application never reads MySQL directly or stores a separate copy of account data.
+Both website and Android app render `Website/web/index.php` and load `Website/web/assets/app.js`. The browser's requests use `fetch('api.php?action=...')` on that server. Authentication cookies, customer/admin roles, menu prices, basket, account settings, food catalogue, order number and payment confirmation all run on the PHP backend. The server is authoritative and uses MySQL via PDO. The Android application never reads MySQL directly or stores a separate copy of account data.
 
 The account and basket are shared between clients when the same account signs in to both. Browser and WebView maintain **separate login cookies**, so logging in on the website does not automatically sign the user into the app. Saved account settings and orders appear in both once authenticated. This behavior is normal and protects session isolation.
 
-The **localhost developer simulation** (`payments.demo`) is restricted to loopback requests by PHP server-side checks. For coursework on the HTTPS host, the different `payments.school_checkout` setting permits **explicitly authorised no-charge** checkout for signed-in users without collecting funds. For real-money testing, configure and validate a PayFast sandbox instead. Do **not** weaken the localhost security check or present simulated confirmation as a real payment.
+The **localhost developer simulation** (`payments.demo`) is restricted to loopback requests by PHP server-side checks. For a demonstration on the HTTPS host, the separate `payments.school_checkout` setting permits **explicitly authorised no-charge** checkout for signed-in users without collecting funds. For real-money testing, configure and validate a PayFast sandbox instead. Do **not** weaken the localhost security check or present simulated confirmation as a real payment.
 
 ## Build
 
@@ -38,4 +38,4 @@ cd C:\wamp64\www\campuseats\CampusEats_Website_Android_App_Separated\Website
 python tests\shared_client_contract.py
 ```
 
-To exercise the actual API and shared database, run the existing `Website/tests/integration.py` on an **isolated test database**, following its instructions. It writes records and must never be run against your real campus database. The prebuilt APK in the `apk` folder does not contain later source changes; rebuild from Android Studio.
+To exercise the actual API and shared database, run the existing `Website/tests/integration.py` on an **isolated test database**, following its instructions. It writes records and must never be run against your live production database. The prebuilt APK in the `apk` folder does not contain later source changes; rebuild from Android Studio.

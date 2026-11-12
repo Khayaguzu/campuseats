@@ -1,6 +1,6 @@
 # Image sources
 
-Illustrative food category photographs served by Unsplash. They do not show confirmed vendor products. Replace with vendor-owned photos before commercial launch. Original college logo retained from the supplied archive; no affiliation is asserted.
+Illustrative food category photographs served by Unsplash. They do not show confirmed vendor products. Replace with vendor-owned photos before commercial launch. The previous institution logo has been removed; CampusEats uses its own generic brand icon.
 
 - burger.jpg: https://images.unsplash.com/photo-1568901346375-23c9450c58cd
 - pizza.jpg: https://images.unsplash.com/photo-1513104890138-7c749659a591

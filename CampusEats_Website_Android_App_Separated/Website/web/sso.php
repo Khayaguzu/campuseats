@@ -40,6 +40,11 @@ try
         }
         $ticket = (string)($_POST['ticket'] ?? '');
         $verifier = (string)($_POST['verifier'] ?? '');
+        if (!preg_match('/^[a-f0-9]{64}$/D', $ticket) ||
+            !preg_match('/^[A-Za-z0-9_-]{43}$/D', $verifier))
+        {
+            throw new RuntimeException('Invalid sign-in handoff. Start Google sign-in again.');
+        }
         $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
         $pdo->beginTransaction();
         $row = query('SELECT * FROM mobile_tickets WHERE ticket_hash=? AND expires_at>UTC_TIMESTAMP() FOR UPDATE', [hash('sha256', $ticket)])->fetch();
@@ -50,8 +55,7 @@ try
         }
         query('DELETE FROM mobile_tickets WHERE ticket_hash=?', [hash('sha256', $ticket)]);
         $pdo->commit();
-        session_regenerate_id(true);
-        $_SESSION['user_id'] = $row['user_id'];
+        establishSession((int)$row['user_id'], 'google');
         header('Location: index.php', true, 303);
         exit;
     }
@@ -87,27 +91,44 @@ try
     }
     $challenge = $_SESSION['oauth_challenge'] ?? null;
     unset($_SESSION['oauth_state'], $_SESSION['oauth_started'], $_SESSION['oauth_challenge']);
+    if (isset($_GET['error']))
+    {
+        throw new RuntimeException('Google sign-in was cancelled. You can return and try again.');
+    }
+    if (empty($_GET['code']) || !is_string($_GET['code']))
+    {
+        throw new RuntimeException('Google did not return an authorization code. Please try again.');
+    }
     $tokens = oauthRequest('https://oauth2.googleapis.com/token', [
         'client_id' => $config['google_client_id'], 'client_secret' => $config['google_client_secret'],
         'redirect_uri' => $redirect, 'grant_type' => 'authorization_code', 'code' => $_GET['code'] ?? ''
     ]);
     // Obtain identity directly from Google's TLS-protected userinfo endpoint;
     // do not decode and trust an unverified ID token from the browser.
+    if (empty($tokens['access_token']) || !is_string($tokens['access_token']))
+    {
+        throw new RuntimeException('Google did not return an access token. Please try again.');
+    }
     $profile = oauthRequest('https://openidconnect.googleapis.com/v1/userinfo', null, $tokens['access_token']);
-    if (empty($profile['email_verified']) || empty($profile['sub']) || empty($profile['email']))
+    if (($profile['email_verified'] ?? false) !== true || empty($profile['sub']) ||
+        !is_string($profile['sub']) || !filter_var($profile['email'] ?? '', FILTER_VALIDATE_EMAIL))
     {
         throw new RuntimeException('A verified Google email address is required.');
     }
     $user = query('SELECT * FROM users WHERE google_sub=?', [$profile['sub']])->fetch();
     if (!$user)
     {
-        $existing = query('SELECT id FROM users WHERE email=?', [strtolower($profile['email'])])->fetch();
+        $existing = query('SELECT id,google_sub FROM users WHERE email=?', [strtolower($profile['email'])])->fetch();
         if ($existing)
         {
             // Linking requires an authenticated session for this exact local account.
             if ((int)($_SESSION['user_id'] ?? 0) !== (int)$existing['id'])
             {
                 throw new RuntimeException('This email already has an account. Sign in with its password in this browser, then select Link Google in Settings.');
+            }
+            if ($existing['google_sub'] !== null && $existing['google_sub'] !== $profile['sub'])
+            {
+                throw new RuntimeException('This account is already linked to another Google identity.');
             }
             query('UPDATE users SET google_sub=? WHERE id=?', [$profile['sub'], $existing['id']]);
             $user = $existing;
@@ -119,15 +140,17 @@ try
             $user = ['id' => $pdo->lastInsertId()];
         }
     }
-    session_regenerate_id(true);
-    $_SESSION['user_id'] = $user['id'];
+    establishSession((int)$user['id'], 'google');
     if ($challenge)
     {
         $ticket = bin2hex(random_bytes(32));
         query('DELETE FROM mobile_tickets WHERE expires_at<UTC_TIMESTAMP()');
         query('INSERT INTO mobile_tickets(ticket_hash,user_id,challenge,expires_at) VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(), INTERVAL 2 MINUTE))',
             [hash('sha256', $ticket), $user['id'], $challenge]);
-        header('Location: campuseats://auth?ticket=' . $ticket);
+        // An explicit user action reliably opens the app from browsers that block
+        // automatic custom-scheme redirects. No provider token leaves this server.
+        $appLink = 'campuseats://auth?ticket=' . $ticket;
+        echo '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return to CampusEats</title><link rel="stylesheet" href="assets/style.css"><main class="shell"><section class="panel"><h1>Google sign-in successful</h1><p>Return to the Android app within two minutes to finish signing in.</p><a class="button" href="' . htmlspecialchars($appLink, ENT_QUOTES, 'UTF-8') . '">Return to CampusEats app</a><p>Your website session is also signed in.</p></section></main></html>';
         exit;
     }
     header('Location: index.php#settings');

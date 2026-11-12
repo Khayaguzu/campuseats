@@ -8,6 +8,8 @@ return [
     'db_password' => '',
     'base_url' => 'http://localhost/campuseats/web',
     'secure_cookies' => false, // Set true when serving the production site over HTTPS.
+    'session_idle_seconds' => 1800, // Sign in again after 30 minutes without requests.
+    'session_absolute_seconds' => 28800, // Maximum session duration: eight hours.
     'google_client_id' => '',
     'google_client_secret' => '',
     // Automatic payment uses PayFast with a public HTTPS callback. Manual EFT is disabled.

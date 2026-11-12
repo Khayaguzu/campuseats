@@ -10,12 +10,11 @@ Call `GET bootstrap` first and keep its session cookie. Use its `csrf` value as 
 | --- | --- | --- | --- |
 | bootstrap | GET | Public | Returns user, csrf, vendors, sso_enabled, payment_options |
 | catalog | GET | Public | Returns active products, prices in cents, stock and vendor availability |
-| register | POST | Public | name, email, password, role, student_number |
+| register | POST | Public | name, email, password; always creates a customer |
 | login | POST | Public | email, password; establishes session |
 | logout | POST | Signed in | Empty JSON object; clears session |
-| settings | POST | Signed in | name, phone, student_number, theme, order_updates |
+| settings | POST | Signed in | name, phone, theme, order_updates |
 | password | POST | Signed in | current_password, new_password |
-| role_request | POST | Signed in | role, student_number; cannot grant admin privileges |
 | cart | GET | Signed in | Returns this user's persisted basket |
 | cart_set | POST | Signed in | product_id, quantity; 0 removes; maximum 99 per product |
 | checkout | POST | Signed in | request_key, pickup_at (ISO timestamp with timezone), notes, payment_method (payfast or demo on localhost only) |
@@ -25,7 +24,6 @@ Call `GET bootstrap` first and keep its session cookie. Use its `csrf` value as 
 | admin | GET | Admin | Products, users, recent 100 orders, revenue stats and image names |
 | product_save | POST | Admin | id (0 for new), vendor_id, name, description, category, price_cents, stock, image, active |
 | vendor_save | POST | Admin | id, name, location, is_open |
-| user_approve | POST | Admin | id; applies requested role and marks verification |
 | order_status | POST | Admin | id, status; paid orders only for preparing/ready/collected |
 | payment_demo_complete | POST | Order owner, localhost only | id; confirms simulated test payment (no real money), enabled explicitly in local configuration |
 
@@ -33,7 +31,7 @@ Call `GET bootstrap` first and keep its session cookie. Use its `csrf` value as 
 
 A basket can contain food from several kitchens. Collection locations are snapshotted in each order item. All basket products must be active, available, from open vendors and in stock. The server serializes checkout for the user and locks inventory during its transaction. Order inserts, item snapshots, stock deductions and basket clearing either all commit or all roll back.
 
-The discount is `round(subtotal_cents / 10)` for a verified student, otherwise zero. Client-supplied prices or totals are ignored. `request_key` must contain 16 to 36 ASCII letters/digits/hyphens and is unique per user. Reusing it returns the original order identifier.
+New orders have zero role-based discount. Historical order discounts are retained. Client-supplied prices or totals are ignored. `request_key` must contain 16 to 36 ASCII letters/digits/hyphens and is unique per user. Reusing it returns the original order identifier.
 
 Orders are stored unpaid, and the collection order number is only displayed as valid after confirmed PayFast payment or clearly labelled local simulation. Pending orders reserve stock; unpaid orders can be cancelled with stock restoration. Paid cancellations require a separate bank/provider refund process. The payment status cannot be updated by the browser or a customer-supplied reference.
 

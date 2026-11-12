@@ -51,6 +51,15 @@ async function api(action, data)
     }
     if (!response.ok)
     {
+        // Refresh expired session state without resubmitting the failed mutation.
+        if ((response.status === 401 || response.status === 403) && state.user && action !== 'bootstrap')
+        {
+            await loadSession();
+            if (!state.user)
+            {
+                await render();
+            }
+        }
         throw new Error(result.error || 'The request failed. Please try again.');
     }
     return result;
@@ -83,11 +92,10 @@ function signInView(register = false)
         ${register ? '<label>Full name<input name="name" autocomplete="name" maxlength="100" required></label>' : ''}
         <label>Email address<input name="email" type="email" autocomplete="email" maxlength="190" required></label>
         <label>Password<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="12" maxlength="72" required></label>
-        ${register ? '<label>Account type<select name="role" id="register-role"><option value="student">Student</option><option value="lecturer">Lecturer</option><option value="admin">Administrator (approval required)</option></select></label><label id="number-label">Student number<input name="student_number" maxlength="40" required></label><p class="hint">Student discounts start after your student number is verified. Administrator requests require approval by an existing administrator.</p>' : ''}
         <button type="submit">${register ? 'Create account' : 'Sign in'}</button>
     </form>
     ${state.sso ? '<p class="hint">Or use your existing Google identity.</p><a class="button secondary full sso-link" href="sso.php">Continue with Google</a>' : '<p class="hint">Google single sign-on is available after the server owner configures it.</p>'}
-    <p class="auth-switch">${register ? 'Already registered?' : 'New to campus?'} <button class="text-button" data-auth="${!register}">${register ? 'Sign in' : 'Create an account'}</button></p>`;
+    <p class="auth-switch">${register ? 'Already registered?' : 'New here?'} <button class="text-button" data-auth="${!register}">${register ? 'Sign in' : 'Create an account'}</button></p>`;
     if (!$('#auth-dialog').open)
     {
         $('#auth-dialog').showModal();
@@ -96,17 +104,17 @@ function signInView(register = false)
 
 function menuView()
 {
-    $('#content').innerHTML = `<section class="hero"><div class="hero-copy"><span class="eyebrow">FRESH FOOD. FAMILIAR FACES.</span><h1>Good food.<br><span>Between classes.</span></h1><p>Your favourite campus kitchens, all in one place. Order ahead. Collect. Enjoy.</p><a class="button" href="#menu" id="browse-menu">Find your next bite ↗</a></div><img src="assets/food/burger.jpg" alt="Beef burger with lettuce and tomato"></section>
-    <div class="info-strip"><span><strong>4</strong> campus kitchens</span><span><strong>10% off</strong> for verified students</span><span><strong>Order online</strong> for campus collection</span></div>
+    $('#content').innerHTML = `<section class="hero"><div class="hero-copy"><span class="eyebrow">FRESH FOOD. FAMILIAR FACES.</span><h1>Good food.<br><span>For everyone.</span></h1><p>Your favourite kitchens, all in one place. Order ahead. Collect. Enjoy.</p><a class="button" href="#menu" id="browse-menu">Find your next bite ↗</a></div><img src="assets/food/burger.jpg" alt="Beef burger with lettuce and tomato"></section>
+    <div class="info-strip"><span><strong>${state.vendors.length}</strong> kitchens</span><span><strong>Everyone welcome</strong> one simple customer account</span><span><strong>Order online</strong> for collection</span></div>
     <div class="section-head" id="menu-start"><div><h2>What are you craving?</h2><p>Something for every break, appetite and budget.</p></div><input class="search" id="search" aria-label="Search food" placeholder="Search your next favourite…" value="${escapeHtml(state.search)}"></div>
-    <div class="filters">${['All', ...new Set(state.products.map((p) => p.category))].map((c) => `<button class="${state.category === c ? 'selected' : ''}" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}<select id="vendor-filter" class="vendor-select" aria-label="Filter by campus vendor"><option value="">All campus kitchens</option>${state.vendors.map((v) => `<option value="${v.id}" ${String(v.id) === state.vendor ? 'selected' : ''}>${escapeHtml(v.name)}${Number(v.is_open) ? '' : ' (closed)'}</option>`).join('')}</select></div><div class="food-grid" id="food-grid"></div>`;
+    <div class="filters">${['All', ...new Set(state.products.map((p) => p.category))].map((c) => `<button class="${state.category === c ? 'selected' : ''}" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}<select id="vendor-filter" class="vendor-select" aria-label="Filter by vendor"><option value="">All kitchens</option>${state.vendors.map((v) => `<option value="${v.id}" ${String(v.id) === state.vendor ? 'selected' : ''}>${escapeHtml(v.name)}${Number(v.is_open) ? '' : ' (closed)'}</option>`).join('')}</select></div><div class="food-grid" id="food-grid"></div>`;
     renderProducts();
 }
 
 function renderProducts()
 {
     const products = state.products.filter((p) => (state.category === 'All' || p.category === state.category) && (!state.vendor || String(p.vendor_id) === state.vendor) && `${p.name} ${p.description} ${p.vendor_name}`.toLowerCase().includes(state.search.toLowerCase()));
-    $('#food-grid').innerHTML = products.length ? products.map((p) => `<article class="food-card"><div class="food-image"><img src="assets/food/${escapeHtml(p.image)}" alt="Illustrative ${escapeHtml(p.category.toLowerCase())} photograph" loading="lazy"><span class="pill">${Number(p.is_open) ? (Number(p.stock) ? `${p.stock} available` : 'Sold out') : 'Kitchen closed'}</span></div><div class="food-body"><div class="vendor-name">${escapeHtml(p.vendor_name)}</div><h3>${escapeHtml(p.name)}</h3><p class="description">${escapeHtml(p.description)}</p><div class="price-line"><div><strong>${money(p.price_cents)}</strong><small>${state.user?.role === 'student' && Number(state.user.verified) ? money(Number(p.price_cents) - Math.round(Number(p.price_cents) / 10)) + ' student price' : 'Per item'}</small></div><button class="add-button" aria-label="Add ${escapeHtml(p.name)} to basket" data-add="${p.id}" ${!Number(p.stock) || !Number(p.is_open) ? 'disabled' : ''}>+</button></div></div></article>`).join('') : '<div class="panel empty">No food matches your search. Try a different category.</div>';
+    $('#food-grid').innerHTML = products.length ? products.map((p) => `<article class="food-card"><div class="food-image"><img src="assets/food/${escapeHtml(p.image)}" alt="Illustrative ${escapeHtml(p.category.toLowerCase())} photograph" loading="lazy"><span class="pill">${Number(p.is_open) ? (Number(p.stock) ? `${p.stock} available` : 'Sold out') : 'Kitchen closed'}</span></div><div class="food-body"><div class="vendor-name">${escapeHtml(p.vendor_name)}</div><h3>${escapeHtml(p.name)}</h3><p class="description">${escapeHtml(p.description)}</p><div class="price-line"><div><strong>${money(p.price_cents)}</strong><small>Per item</small></div><button class="add-button" aria-label="Add ${escapeHtml(p.name)} to basket" data-add="${p.id}" ${!Number(p.stock) || !Number(p.is_open) ? 'disabled' : ''}>+</button></div></div></article>`).join('') : '<div class="panel empty">No food matches your search. Try a different category.</div>';
 }
 
 function basketView()
@@ -117,16 +125,16 @@ function basketView()
         return;
     }
     const subtotal = state.cart.reduce((sum, p) => sum + Number(p.price_cents) * Number(p.quantity), 0);
-    const discount = state.user.role === 'student' && Number(state.user.verified) ? Math.round(subtotal / 10) : 0;
+    const discount = 0; // All customers pay the displayed menu price.
     const currentTime = Date.now();
     const defaultPickup = localDateTime(currentTime + 20 * 60000);
     const earliestPickup = localDateTime(currentTime + 5 * 60000);
     const latestPickup = localDateTime(currentTime + 24 * 60 * 60000);
     const methods = [
         state.paymentOptions.payfast ? '<option value="payfast">PayFast secure online payment</option>' : '',
-        state.paymentOptions.demo ? '<option value="demo">Card or Instant EFT · no charge</option>' : ''
+        state.paymentOptions.demo ? '<option value="demo">No-charge checkout (Card or Instant EFT)</option>' : ''
     ].filter(Boolean).join('');
-    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT CAMPUS BREAK</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div><span>Student discount (10%)</span><span>−${money(discount)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div>${state.user.role === 'student' && !Number(state.user.verified) ? '<p class="notice">You can place an order now. The 10% student discount starts after student-number verification.</p>' : ''}<form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Complete checkout before collection. Your collection number appears after account confirmation. ${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'No money is charged for this coursework checkout.' : 'Payment is handled by the selected provider.'} For allergies, confirm ingredients with the vendor before ordering.</p>${methods ? `<label>Payment method<select name="payment_method" required>${methods}</select></label><button type="submit">${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Continue to checkout' : 'Continue to payment'} · ${money(subtotal - discount)}</button>` : '<p class="notice">Checkout is not enabled for this account. Ask the project administrator for access.</p>'}</form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
+    $('#basket-content').innerHTML = `<span class="eyebrow">YOUR NEXT GOOD MEAL</span><h2 id="basket-title">Your basket</h2>${state.cart.length ? state.cart.map((p) => `<div class="cart-item"><img src="assets/food/${escapeHtml(p.image)}" alt=""><div><h3>${escapeHtml(p.name)}</h3><p>${money(p.price_cents)} · ${escapeHtml(p.vendor_name)}</p></div><div class="quantity"><button data-quantity="${p.id}" data-value="${Number(p.quantity) - 1}" aria-label="Remove one ${escapeHtml(p.name)}">−</button><span>${p.quantity}</span><button data-quantity="${p.id}" data-value="${Number(p.quantity) + 1}" aria-label="Add one ${escapeHtml(p.name)}">+</button></div></div>`).join('') + `<div class="totals"><div><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="total"><span>Total</span><span>${money(subtotal - discount)}</span></div></div><form id="checkout-form"><label>Collection time (your device time)<input type="datetime-local" name="pickup_at" value="${defaultPickup}" min="${earliestPickup}" max="${latestPickup}" required></label><label>Order notes<textarea name="notes" maxlength="500" placeholder="Anything the kitchen should know?"></textarea></label><p class="hint">Complete checkout before collection. Your collection number appears after account confirmation. ${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Practice checkout only. No money is charged or transferred.' : 'Payment is handled by the selected provider.'} For allergies, confirm ingredients with the vendor before ordering.</p>${methods ? `<label>Payment method<select name="payment_method" required>${methods}</select></label><button type="submit">${state.paymentOptions.demo && !state.paymentOptions.payfast ? 'Continue to checkout' : 'Continue to payment'} · ${money(subtotal - discount)}</button>` : '<p class="notice">Checkout is not enabled for this account. Please contact the store for assistance.</p>'}</form>` : '<div class="empty"><p>Your basket is waiting for something good.</p><button data-close="basket-dialog">Explore the menu</button></div>'}`;
     if (!$('#basket-dialog').open)
     {
         $('#basket-dialog').showModal();
@@ -158,28 +166,46 @@ async function demoPaymentView(orderId)
 
     $('#payment-demo-content').innerHTML = `
         <span class="eyebrow">CAMPUSEATS SECURE CHECKOUT</span>
-        <h2 id="payment-demo-title">Review your checkout</h2>
-        <p class="demo-payment-warning">No money is charged. Card and EFT are checkout choices only. Do not enter banking or card details.</p>
+        <h2 id="payment-demo-title">Choose a payment option</h2>
+        <p class="demo-payment-warning">Practice checkout: no real payment will be collected. Use only the sample information provided. Never enter a real card number, CVV, banking password or PIN.</p>
         <div class="demo-payment-summary">
             <div class="demo-payment-line"><span>Order</span><strong>#${Number(order.id)}</strong></div>
             ${lines}
             <div class="demo-payment-line"><span>Subtotal</span><span>${money(order.subtotal_cents)}</span></div>
-            <div class="demo-payment-line"><span>Student discount</span><span>−${money(order.discount_cents)}</span></div>
+            <div class="demo-payment-line"><span>Discount</span><span>−${money(order.discount_cents)}</span></div>
             <div class="demo-payment-line demo-payment-total"><span>Order total</span><strong>${money(order.total_cents)}</strong></div>
         </div>
         <form id="demo-payment-form" data-order-id="${Number(order.id)}">
             <fieldset class="demo-payment-methods">
                 <legend>Choose payment method</legend>
-                <label class="demo-payment-option"><input type="radio" name="demo_method" value="card" checked> Card <small>No card details needed.</small></label>
-                <label class="demo-payment-option"><input type="radio" name="demo_method" value="eft"> Instant EFT <small>No banking login needed.</small></label>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="card" checked> Card <small>Enter sample card details only.</small></label>
+                <label class="demo-payment-option"><input type="radio" name="demo_method" value="eft"> Instant EFT <small>Choose a sample bank and reference.</small></label>
+            </fieldset>
+            <!-- Only fictional payment details are accepted. No real credentials are required. -->
+            <fieldset class="payment-identity" data-practice-fields="card">
+                <legend>Sample card details</legend>
+                <p class="hint">Use the sample number and expiry shown below. Never enter an actual card number or security code.</p>
+                <label>Name on sample card<input name="practice_cardholder" autocomplete="off" maxlength="100" placeholder="Sample Customer" required></label>
+                <label>Sample card number<input name="practice_card_number" autocomplete="off" inputmode="numeric" placeholder="4242 4242 4242 4242" pattern="4242 ?4242 ?4242 ?4242" required></label>
+                <label>Sample expiry (MM/YY)<input name="practice_expiry" autocomplete="off" placeholder="12/30" pattern="12/30" required></label>
+            </fieldset>
+            <fieldset class="payment-identity" data-practice-fields="eft" hidden>
+                <legend>Sample Instant EFT details</legend>
+                <p class="hint">No connection to a bank will occur. Do not enter account numbers, passwords or PINs.</p>
+                <label>Sample bank<select name="practice_bank" required disabled>
+                    <option value="">Select a sample bank</option>
+                    <option value="test_bank_1">Test Bank 1</option>
+                    <option value="test_bank_2">Test Bank 2</option>
+                </select></label>
+                <label>Sample reference<input name="practice_eft_reference" autocomplete="off" placeholder="TEST-1234" pattern="TEST-[0-9]{4,8}" required disabled></label>
             </fieldset>
             <fieldset class="payment-identity">
                 <legend>Confirm your CampusEats account</legend>
                 <label>Email address<input type="email" name="email" autocomplete="username" value="${escapeHtml(state.user.email)}" maxlength="190" required></label>
                 <label>CampusEats password<input type="password" name="password" autocomplete="current-password" required></label>
             </fieldset>
-            <button type="submit" class="full">Confirm order · ${money(order.total_cents)}</button>
-            <p class="hint">No money is transferred. Your collection number appears after you confirm your account. No administrator approval is needed.</p>
+            <button type="submit" class="full">Confirm no-charge order · ${money(order.total_cents)}</button>
+            <p class="hint">No funds are transferred. Confirm your CampusEats account to generate a collection number.</p>
         </form>
         <button class="secondary full" type="button" data-close="payment-demo-dialog">Return to orders</button>`;
     if (!$('#payment-demo-dialog').open)
@@ -224,7 +250,7 @@ function demoReceiptView(orderId, collectionNumber, amount)
     $('#payment-demo-content').innerHTML = `
         <span class="eyebrow">CAMPUSEATS ORDER CONFIRMATION</span>
         <h2 id="payment-demo-title">Order confirmed</h2>
-        <p class="demo-payment-warning">No money was charged. This order confirmation is for your coursework project, not proof of a bank payment.</p>
+        <p class="demo-payment-warning">No money was charged. This confirms a no-charge practice order, not a bank payment.</p>
         <div class="demo-payment-receipt" role="status">
             <span class="eyebrow">YOUR COLLECTION NUMBER</span>
             <strong class="demo-collection-code">${escapeHtml(collectionNumber)}</strong>
@@ -250,13 +276,13 @@ function orderCard(order, admin = false)
     const demoPayment = pending && demo && !admin
         ? `<p class="notice"><strong>No money is charged.</strong> Confirm your CampusEats account to receive a collection number.</p><button data-demo-pay="${order.id}">Continue to checkout</button>` : '';
     const online = pending && method === 'payfast' && !admin ? `<p class="notice">Online payment not yet confirmed. Use Pay online or refresh after returning from PayFast.</p><button data-pay="${order.id}">Pay online</button>` : '';
-    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">${collection}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">Internal order ${order.id} · ${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${paid ? (demo ? 'Confirmed · No charge (coursework)' : 'Paid · ' + (method === 'payfast' ? 'PayFast verified' : 'Legacy payment')) : (demo ? 'Awaiting checkout' : 'Awaiting payment')}</span></div></div>${pending ? `<p class="notice">${demo ? 'Complete checkout before food preparation and collection.' : 'Payment is required before food preparation and collection.'}</p>` : ''}${paid && order.status !== 'cancelled' ? `<div class="progress">${stages.map((stage, index) => `<span class="${index <= stages.indexOf(order.status) ? 'done' : ''}">${stage}</span>`).join('')}</div>` : ''}${order.status === 'cancelled' ? '<p class="notice">Cancelled. Stock returned to the kitchens.</p>' : ''}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Student savings ${money(order.discount_cents)}</p>${bankDetails}${online}${demoPayment}<div class="row">${admin && paid && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm collection' : 'Mark ' + next[order.status]}</button>` : ''}${!paid && ((admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed')) ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel pending order</button>` : ''}</div></article>`;
+    return `<article class="panel"><div class="order-top"><div><span class="eyebrow">${collection}</span><h3>${dateText(order.pickup_at)}</h3><span class="hint">Collection time · South Africa</span>${admin ? `<p class="hint">Internal order ${order.id} · ${escapeHtml(order.customer)} · ${escapeHtml(order.email)}</p>` : ''}</div><div><span class="pill">${escapeHtml(order.status)}</span><h3>${money(order.total_cents)}</h3><span class="hint">${paid ? (demo ? 'Practice order · no money received' : 'Paid · ' + (method === 'payfast' ? 'PayFast verified' : 'Legacy payment')) : (demo ? 'Awaiting checkout' : 'Awaiting payment')}</span></div></div>${pending ? `<p class="notice">${demo ? 'Complete checkout before food preparation and collection.' : 'Payment is required before food preparation and collection.'}</p>` : ''}${paid && order.status !== 'cancelled' ? `<div class="progress">${stages.map((stage, index) => `<span class="${index <= stages.indexOf(order.status) ? 'done' : ''}">${stage}</span>`).join('')}</div>` : ''}${order.status === 'cancelled' ? '<p class="notice">Cancelled. Stock returned to the kitchens.</p>' : ''}<ul class="order-items">${order.items.map((item) => `<li>${item.quantity} × ${escapeHtml(item.name)} · ${money(Number(item.price_cents) * Number(item.quantity))}<small>${escapeHtml(item.vendor_name)} · ${escapeHtml(item.location)}</small></li>`).join('')}</ul>${order.notes ? `<p class="hint">Notes: ${escapeHtml(order.notes)}</p>` : ''}<p class="hint">Subtotal ${money(order.subtotal_cents)} · Discount ${money(order.discount_cents)}</p>${bankDetails}${online}${demoPayment}<div class="row">${admin && paid && next[order.status] ? `<button data-status="${order.id}" data-value="${next[order.status]}">${order.status === 'ready' ? 'Confirm collection' : 'Mark ' + next[order.status]}</button>` : ''}${!paid && ((admin && ['placed', 'preparing'].includes(order.status)) || (!admin && order.status === 'placed')) ? `<button class="danger" data-cancel="${order.id}" data-admin="${admin}">Cancel pending order</button>` : ''}</div></article>`;
 }
 
 function settingsView()
 {
     const u = state.user;
-    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">MAKE YOURSELF AT HOME</span><h1>My account</h1><p>Your profile and preferences sync across the website and app.</p></div><button class="secondary" id="logout">Sign out</button></div><div class="two-col"><section class="panel"><h2>Personal details</h2><form id="settings-form"><label>Full name<input name="name" value="${escapeHtml(u.name)}" maxlength="100" required></label><label>Email<input value="${escapeHtml(u.email)}" disabled></label><label>Phone number<input name="phone" type="tel" maxlength="30" value="${escapeHtml(u.phone)}"></label><label>Student number<input name="student_number" maxlength="40" value="${escapeHtml(u.student_number)}" ${u.role === 'student' ? 'required' : ''}></label><label>Appearance<select name="theme"><option value="light" ${u.theme === 'light' ? 'selected' : ''}>Light</option><option value="dark" ${u.theme === 'dark' ? 'selected' : ''}>Dark</option></select></label><label class="check"><input type="checkbox" name="order_updates" ${Number(u.order_updates) ? 'checked' : ''}>Show order updates while I use CampusEats</label><p class="hint">Order updates appear in the app or browser while open. Changing your student number requires verification again.</p><button>Save changes</button></form></section><div><section class="panel"><h2>Your campus role</h2><p><span class="pill">${escapeHtml(u.role)}</span> <span class="pill">${Number(u.verified) ? 'Verified' : 'Awaiting verification'}</span></p><p class="hint">Requested role: ${escapeHtml(u.requested_role)}. Verified students receive 10% off food orders.</p>${u.role !== 'admin' ? `<form id="role-form"><label>Request account type<select name="role">${['student','lecturer','admin'].map((r) => `<option value="${r}" ${r === u.requested_role ? 'selected' : ''}>${r === 'admin' ? 'Administrator (approval required)' : r[0].toUpperCase() + r.slice(1)}</option>`).join('')}</select></label><label>Student number (required for students)<input name="student_number" value="${escapeHtml(u.student_number)}" maxlength="40"></label><button class="secondary">Submit role request</button></form>` : '<p class="hint">You can manage food, users, vendors and orders in Administration.</p>'}</section><section class="panel"><h2>Security</h2><form id="password-form"><label>Current password<input type="password" name="current_password" autocomplete="current-password"></label><label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="72" required></label><p class="hint">Use 12 to 72 characters. For an SSO-only account, leave the current password blank to set a password.</p><button>Update password</button></form>${state.sso ? '<p class="hint">Link the Google account with the same email. For Android, complete initial linking in your system browser while signed into this account.</p><a class="button secondary full sso-link" href="sso.php">Link Google identity</a>' : ''}</section></div></div>`;
+    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">MAKE YOURSELF AT HOME</span><h1>My account</h1><p>Your profile and preferences sync across the website and app.</p></div><button class="secondary" id="logout">Sign out</button></div><div class="two-col"><section class="panel"><h2>Personal details</h2><form id="settings-form"><label>Full name<input name="name" value="${escapeHtml(u.name)}" maxlength="100" required></label><label>Email<input value="${escapeHtml(u.email)}" disabled></label><label>Phone number<input name="phone" type="tel" maxlength="30" value="${escapeHtml(u.phone)}"></label><label>Appearance<select name="theme"><option value="light" ${u.theme === 'light' ? 'selected' : ''}>Light</option><option value="dark" ${u.theme === 'dark' ? 'selected' : ''}>Dark</option></select></label><label class="check"><input type="checkbox" name="order_updates" ${Number(u.order_updates) ? 'checked' : ''}>Show order updates while I use CampusEats</label><p class="hint">Order updates appear in the app or browser while open.</p><button>Save changes</button></form></section><div><section class="panel"><h2>Your account</h2><p><span class="pill">${u.role === 'admin' ? 'Administrator' : 'Customer'}</span></p><p class="hint">Everyone can browse, order and collect food. Your account works on the website and Android app.</p></section><section class="panel"><h2>Security</h2><form id="password-form"><label>Current password<input type="password" name="current_password" autocomplete="current-password"></label><label>New password<input type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="72" required></label><p class="hint">Use 12 to 72 characters. For an SSO-only account, leave the current password blank to set a password.</p><button>Update password</button></form>${state.sso ? `<p class="hint">${Number(u.google_linked) ? 'Google identity connected. Use Continue with Google on the website or Android app.' : 'To connect an existing account, open the website in your system browser, sign in with your password, then select Link Google identity using the same email.'}</p><a class="button secondary full sso-link" href="sso.php">${Number(u.google_linked) ? 'Continue with Google' : 'Link Google identity'}</a>` : ''}</section></div></div>`;
 }
 
 function adminView()
@@ -274,13 +300,13 @@ function adminView()
     }
     if (state.adminTab === 'users')
     {
-        body = `<p class="notice">Verify student numbers against campus records. Only approve administrator requests from authorised staff.</p><div class="panel table-wrap"><table><thead><tr><th>Name / email</th><th>Role</th><th>Requested</th><th>Student number</th><th>Verification</th></tr></thead><tbody>${data.users.map((u) => `<tr><td>${escapeHtml(u.name)}<br><span class="hint">${escapeHtml(u.email)}</span></td><td>${escapeHtml(u.role)}</td><td>${escapeHtml(u.requested_role)}</td><td>${escapeHtml(u.student_number) || 'N/A'}</td><td>${Number(u.verified) ? 'Verified' : `<button data-approve="${u.id}">Approve ${escapeHtml(u.requested_role)}</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+        body = `<div class="panel table-wrap"><table><thead><tr><th>Name / email</th><th>Account</th></tr></thead><tbody>${data.users.map((u) => `<tr><td>${escapeHtml(u.name)}<br><span class="hint">${escapeHtml(u.email)}</span></td><td>${u.role === 'admin' ? 'Administrator' : 'Customer'}</td></tr>`).join('')}</tbody></table></div>`;
     }
     if (state.adminTab === 'vendors')
     {
         body = `<div class="two-col">${state.vendors.map((v) => `<section class="panel"><h2>${escapeHtml(v.name)}</h2><form class="vendor-form"><input type="hidden" name="id" value="${v.id}"><label>Vendor name<input name="name" value="${escapeHtml(v.name)}" maxlength="100" required></label><label>Collection location<input name="location" value="${escapeHtml(v.location)}" maxlength="150" required></label><label class="check"><input type="checkbox" name="is_open" ${Number(v.is_open) ? 'checked' : ''}>Accepting orders</label><button>Save vendor</button></form></section>`).join('')}</div>`;
     }
-    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">CAMPUS KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Verified payments</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
+    $('#content').innerHTML = `<div class="section-head"><div><span class="eyebrow">KITCHEN CONTROL</span><h1>Administration</h1></div><button class="secondary" id="refresh">Refresh</button></div><div class="stats"><div class="panel"><span class="hint">Total orders</span><strong>${data.stats.orders}</strong></div><div class="panel"><span class="hint">Confirmed checkouts (including no-charge orders)</span><strong>${money(data.stats.revenue_cents)}</strong></div><div class="panel"><span class="hint">Food items</span><strong>${data.products.length}</strong></div></div><div class="filters">${tabs.map((t) => `<button data-admin-tab="${t}" class="${state.adminTab === t ? 'selected' : ''}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>${body}`;
 }
 
 function productEditor(id)
@@ -297,7 +323,7 @@ async function render()
     document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === page));
     if (page !== 'menu' && !state.user)
     {
-        $('#content').innerHTML = '<section class="panel empty"><h1>Your campus, connected.</h1><p>Sign in to view orders and manage your account.</p><button id="open-login">Sign in</button></section>';
+        $('#content').innerHTML = '<section class="panel empty"><h1>Your food, your way.</h1><p>Sign in to view orders and manage your account.</p><button id="open-login">Sign in</button></section>';
         return;
     }
     if (page === 'orders')
@@ -425,12 +451,6 @@ document.addEventListener('click', async (event) =>
             adminView();
         }
         if (element.dataset.editProduct || element.id === 'new-product') productEditor(Number(element.dataset.editProduct) || 0);
-        if (element.dataset.approve)
-        {
-            if (!confirm('Confirm that you have verified this person and their requested role?')) return;
-            await api('user_approve', { id: Number(element.dataset.approve) });
-            await render();
-        }
     }
     catch (error)
     {
@@ -457,10 +477,26 @@ document.addEventListener('change', (event) =>
         state.vendor = event.target.value;
         renderProducts();
     }
-    if (event.target.id === 'register-role')
+
+    /*
+     * Show the selected fictional payment details.
+     * Disable fields for the other method to avoid irrelevant validation.
+     */
+    if (event.target.matches('#demo-payment-form input[name="demo_method"]'))
     {
-        $('#number-label').hidden = event.target.value !== 'student';
-        $('#number-label input').required = event.target.value === 'student';
+        const form = event.target.form;
+        const selectedMethod = event.target.value;
+
+        for (const method of ['card', 'eft'])
+        {
+            const group = form.querySelector('[data-practice-fields="' + method + '"]');
+            const selected = method === selectedMethod;
+            group.hidden = !selected;
+            group.querySelectorAll('input, select').forEach((field) =>
+            {
+                field.disabled = !selected;
+            });
+        }
     }
 });
 
@@ -483,8 +519,34 @@ document.addEventListener('submit', async (event) =>
         }
         if (form.id === 'demo-payment-form')
         {
-            // Both visible options simulate the SAME local-only API action.
-            // No card or banking information is ever sent to the PHP server.
+            /*
+             * Only documented fictional details are accepted.
+             * No card, bank, or sample payment details are sent to the API.
+             * The server reauthenticates the existing CampusEats account.
+             */
+            if (data.demo_method === 'card')
+            {
+                const number = String(data.practice_card_number || '').replace(/\s/g, '');
+                if (!String(data.practice_cardholder || '').trim()
+                    || number !== '4242424242424242'
+                    || data.practice_expiry !== '12/30')
+                {
+                    throw new Error('Use sample card 4242 4242 4242 4242 and expiry 12/30. Never enter a real card number.');
+                }
+            }
+            else if (data.demo_method === 'eft')
+            {
+                if (!['test_bank_1', 'test_bank_2'].includes(data.practice_bank)
+                    || !/^TEST-[0-9]{4,8}$/.test(String(data.practice_eft_reference || '')))
+                {
+                    throw new Error('Choose a sample bank and enter a reference such as TEST-1234.');
+                }
+            }
+            else
+            {
+                throw new Error('Choose a checkout method.');
+            }
+
             const orderId = Number(form.dataset.orderId);
             const matchingOrder = (await api('orders')).orders.find((o) => Number(o.id) === orderId);
             if (!matchingOrder || matchingOrder.payment_method !== 'demo')
@@ -550,13 +612,6 @@ document.addEventListener('submit', async (event) =>
             form.reset();
             toast('Password updated.');
         }
-        if (form.id === 'role-form')
-        {
-            await api('role_request', data);
-            await loadSession();
-            await render();
-            toast('Role request submitted for verification.');
-        }
         if (form.id === 'product-form')
         {
             data.price_cents = Math.round(Number(data.price) * 100);
@@ -601,7 +656,7 @@ setInterval(async () =>
         {
             if (knownOrders.has(order.id) && (knownOrders.get(order.id).status !== order.status || knownOrders.get(order.id).paid !== order.payment_status))
             {
-                toast(order.payment_status === 'paid' ? `Payment confirmed. Collection number CE${String(order.id).padStart(6, '0')}.` : `Your order status is now ${order.status}.`);
+                toast(order.payment_status === 'paid' ? `Order confirmed. Collection number CE${String(order.id).padStart(6, '0')}.` : `Your order status is now ${order.status}.`);
                 if (route() === 'orders') await render();
             }
             knownOrders.set(order.id, { status: order.status, paid: order.payment_status });

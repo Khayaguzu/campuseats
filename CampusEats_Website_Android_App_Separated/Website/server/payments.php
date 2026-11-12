@@ -46,9 +46,8 @@ function schoolCheckoutAllowed(array $config, ?array $user): bool
         return false;
     }
 
-    // For the coursework installation, students and lecturers can place
-    // no-charge orders immediately after registering. Verification still
-    // controls student discounts; this does not grant administrator rights.
+    // When configured for demonstration, registered customers can place
+    // no-charge orders. This does not grant administrator rights.
     if (!empty($settings['allow_registered_users']))
     {
         return true;
